@@ -1,16 +1,16 @@
-name: Feature request
-description: Suggest a focused improvement.
+name: Verbesserung vorschlagen
+description: Eine konkrete Verbesserung vorschlagen.
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What problem would this solve?
+      label: Welches Problem würde die Änderung lösen?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Suggested behavior
-      description: Describe the user-facing result and any alternatives you considered.
+      label: Gewünschtes Verhalten
+      description: Beschreibe das Ergebnis für die Nutzung und gegebenenfalls erwogene Alternativen.
     validations:
       required: true

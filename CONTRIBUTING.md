@@ -1,12 +1,12 @@
-# Contributing
+# Mitwirken
 
-Keep changes focused and describe the problem, the resulting behavior and how it was tested. Open an issue before a substantial redesign or data-format change.
+Halte Änderungen überschaubar und beschreibe das konkrete Problem, das daraus entstehende Verhalten und die durchgeführten Prüfungen. Eröffne vor einer grösseren Umgestaltung oder einer Änderung des Datenformats ein Issue.
 
-## Development
+## Entwicklung
 
-The integration is in `custom_components/ha_wartung`. The dashboard uses native Web Components and has no frontend build step. Pure domain logic lives in `engine.py`.
+Die Integration liegt in `custom_components/ha_wartung`. Das Dashboard verwendet native Web Components und benötigt keinen Frontend-Build. Die unabhängige Fachlogik steht in `engine.py`.
 
-Run the Python and frontend regression suites:
+Python- und Frontend-Regressionstests ausführen:
 
 ```sh
 python3 -m unittest discover -s tests -q
@@ -14,26 +14,26 @@ for testfile in tests/test_frontend_*.cjs; do node "$testfile"; done
 node --check custom_components/ha_wartung/frontend/panel.js
 ```
 
-Use a separate, disposable Home Assistant instance for integration tests and browser checks. Do not point tests at a household instance. GitHub Actions runs the release validation, Python and frontend checks, and the Home Assistant lifecycle tests configured in the workflow files.
+Verwende für Integrationstests und Browserprüfungen eine separate, entbehrliche Home-Assistant-Instanz. Führe Tests nicht gegen eine produktive Haushaltsinstanz aus. GitHub Actions führt die Veröffentlichungsprüfung, die Python- und Frontend-Tests sowie die in den Workflow-Dateien konfigurierten Home-Assistant-Lebenszyklustests aus.
 
-Run the real lifecycle suite with Docker and an official Home Assistant image:
+Die Lebenszyklustests mit Docker und einem offiziellen Home-Assistant-Image starten:
 
 ```sh
 python3 scripts/test_ha_lifecycle.py --version 2026.11.2
 ```
 
-The runner creates an isolated temporary configuration, binds only to localhost, tests installation, restart, update and reinstallation, and removes its test container afterwards. `--keep` retains the synthetic test environment for browser checks.
+Das Testskript erstellt eine isolierte temporäre Konfiguration, bindet den Zugriff ausschliesslich an localhost, prüft Installation, Neustart, Aktualisierung und erneute Einrichtung und entfernt anschliessend den Testcontainer. Mit `--keep` bleibt die Umgebung mit erfundenen Testdaten für Browserprüfungen erhalten.
 
-Preserve the `ha_wartung` domain and existing storage compatibility. New settings need defaults that preserve existing installations. Avoid changing device, entity or helper identifiers automatically.
+Behalte die Domäne `ha_wartung` und die Kompatibilität mit gespeicherten Daten bei. Neue Einstellungen benötigen Standardwerte, die bestehende Installationen erhalten. Ändere Geräte-, Entitäts- oder Helferkennungen nicht automatisch.
 
-## Test data and reports
+## Testdaten und Meldungen
 
-Use synthetic names, example identifiers and reserved example URLs. Do not commit real exports, `.storage`, authentication tokens, device photos or household screenshots. Tests should cover behavior rather than copy the implementation.
+Verwende erfundene Namen, Beispielkennungen und reservierte Beispiel-URLs. Nimm keine echten Exporte, `.storage`-Dateien, Zugriffstoken, Gerätefotos oder Bildschirmfotos aus einem Haushalt ins Repository auf. Tests sollen das Verhalten prüfen und nicht lediglich die Implementierung nachbilden.
 
-Check both a narrow phone layout and a desktop layout when changing the dashboard. Controls must work with keyboard navigation and touch; destructive changes need a clear confirmation.
+Prüfe bei Änderungen am Dashboard sowohl eine schmale Smartphone-Ansicht als auch eine Desktop-Ansicht. Bedienelemente müssen mit Tastatur und Touch funktionieren; endgültige Änderungen benötigen eine klare Bestätigung.
 
-## Releases
+## Veröffentlichungen
 
-The tag, manifest version and runtime version must agree. Run HACS and hassfest checks without ignored validations before proposing catalog inclusion. Publish a full GitHub release rather than only a tag. See `CHANGELOG.md` for user-visible changes.
+Tag, Manifest-Version und Laufzeitversion müssen übereinstimmen. Führe vor einem Antrag auf Katalogaufnahme die HACS- und hassfest-Prüfungen ohne übersprungene Validierungen aus. Veröffentliche einen vollständigen GitHub-Release und nicht nur einen Tag. Änderungen für Nutzerinnen und Nutzer stehen in [CHANGELOG.md](CHANGELOG.md).
 
-By contributing, you agree that your contribution is distributed under the repository's MIT license. Keep copyright and license notices for any third-party material.
+Mit einem Beitrag erklärst du dich einverstanden, dass er unter der MIT-Lizenz dieses Repositorys veröffentlicht wird. Behalte Urheberrechts- und Lizenzhinweise für Material Dritter bei.

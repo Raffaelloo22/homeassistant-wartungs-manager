@@ -1,15 +1,15 @@
-# Security
+# Sicherheit
 
-Wartungs-Manager is a custom Home Assistant integration. Its management dashboard and WebSocket API require a Home Assistant administrator account. Maintenance records stay in Home Assistant's local storage; exports can contain private household information.
+Der Wartungs-Manager ist eine benutzerdefinierte Home-Assistant-Integration. Sein Verwaltungsdashboard und seine WebSocket-Schnittstelle erfordern ein Home-Assistant-Administratorkonto. Wartungsdaten bleiben im lokalen Speicher von Home Assistant; Exporte können private Haushaltsangaben enthalten.
 
-## Reporting a vulnerability
+## Sicherheitslücke melden
 
-Use **GitHub → Security → Report a vulnerability** for this repository when private vulnerability reporting is available. Do not include access tokens, live exports, device serial numbers or other household information in a public issue.
+Verwende im GitHub-Repository **Security → Report a vulnerability**, sofern die private Meldung von Sicherheitslücken verfügbar ist. Veröffentliche keine Zugriffstoken, echten Exporte, Geräteseriennummern oder sonstigen Haushaltsangaben in einem öffentlichen Issue.
 
-If private reporting is unavailable, open a public issue containing only a request for a private security contact, without exploit details or personal data. The maintainer can arrange a private follow-up.
+Falls private Sicherheitsmeldungen nicht verfügbar sind, eröffne ein öffentliches Issue mit der Bitte um einen privaten Sicherheitskontakt. Verzichte dabei auf Details zur Ausnutzung und auf personenbezogene Daten. Der Betreuer kann anschliessend einen privaten Austausch organisieren.
 
-## Updates
+## Aktualisierungen
 
-Security fixes are delivered through releases. Install the latest supported release and use a supported Home Assistant version. Maintainer response times are not guaranteed.
+Sicherheitskorrekturen werden über Releases ausgeliefert. Installiere die neueste unterstützte Version und verwende eine unterstützte Home-Assistant-Version. Feste Reaktionszeiten des Betreuers sind nicht zugesichert.
 
-A normal bug report can be submitted through the issue templates. Export a minimal anonymized example rather than sharing a household backup.
+Normale Fehlermeldungen können über die Issue-Vorlagen eingereicht werden. Verwende ein minimales, anonymisiertes Beispiel und teile keine Haushaltssicherung.

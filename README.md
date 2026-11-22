@@ -1,109 +1,109 @@
 # Wartungs-Manager
 
-<img src="custom_components/ha_wartung/brand/icon.png" alt="Wartungs-Manager icon" width="64" height="64">
+<img src="custom_components/ha_wartung/brand/icon.png" alt="Wartungs-Manager-Symbol" width="64" height="64">
 
-A local maintenance dashboard for Home Assistant: device records, recurring and one-off tasks, service history, batteries and other consumables.
+Lokale Geräteakten, Wartungsaufgaben, Historie und Verbrauchsmaterial für Home Assistant.
 
-[Deutsche Anleitung](README.de.md) · [Report a problem](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
+[English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
-## Preview
+## Vorschau
 
-Screenshots from an isolated Home Assistant test installation using fictitious records. The installed integration starts empty.
+Die Bilder stammen aus einer isolierten Home-Assistant-Testinstallation mit erfundenen Einträgen. Die Integration startet ohne Gerätedaten.
 
-![Device directory on desktop](docs/images/devices-desktop.jpg)
+![Geräteübersicht auf dem Desktop](docs/images/devices-desktop.jpg)
 
-<img src="docs/images/consumables-mobile.jpg" alt="Compact consumable inventory on a phone" width="320">
+<img src="docs/images/consumables-mobile.jpg" alt="Kompakte Verbrauchsmaterialansicht auf dem Smartphone" width="320">
 
-## What it does
+## Funktionen
 
-- Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.
-- Plan tasks by date, interval, season, rotation, sensor value or device indication. Record completion dates, costs and notes, and edit the resulting history.
-- Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
-- Track stock, purchase thresholds, purchase requests, notes and the devices that use each item.
-- Find low batteries in the task view using a shared Home Assistant threshold helper.
-- Organize devices as active, stored, archived or in the trash; edit categories and event types.
-- Export and import the directory as JSON. An optional weekly summary appears as a Home Assistant persistent notification.
+- Geräte manuell erfassen oder mit Home-Assistant-Geräten verknüpfen; Sammelerfassung mit Vorschau und Duplikatprüfung.
+- Einmalige Termine, Intervalle, Saisonaufgaben, Rotationen und Aufgaben nach Sensorwert oder Geräteanzeige.
+- Erledigungen mit Datum, Kosten und Notizen dokumentieren; Historie bearbeiten und Bestandsabzüge bestätigen.
+- Batterien und weiteres Verbrauchsmaterial mit Mengen, Nachkaufgrenzen, Notizen und Gerätezuordnung verwalten.
+- Niedrige Batteriestände in der Aufgabenansicht anzeigen und Einkäufe vormerken.
+- Aktive Geräte, Lager, Archiv und Papierkorb; Kategorien und Ereignisarten bearbeiten.
+- JSON-Export und bestätigter Import sowie eine optionale Wochenmeldung innerhalb Home Assistant.
 
-The dashboard has **Aufgaben** (tasks), **Geräte** (devices), **Verbrauchsmaterial** (consumables), **Log** and **Einstellungen** (settings). On phones, the tabs use icons and consumables use compact cards with a stock button and an actions menu.
+Auf Smartphones sind die Reiter als Symbole dargestellt. Verbrauchsmaterial-Kacheln zeigen die antippbare Bestandszahl und eine kompakte Aktionszeile.
 
-## Requirements
+## Voraussetzungen
 
-- Home Assistant **2026.11.0 or newer**.
-- A Home Assistant administrator account. The dashboard and its API are administrator-only.
-- No cloud account, external subscription or vendor integration is required. Devices without a Home Assistant counterpart can be entered manually.
+- Home Assistant **2026.11.0 oder neuer**.
+- Ein Administratorenkonto in Home Assistant. Oberfläche und Schnittstelle sind nur für Administratoren zugänglich.
+- Keine Cloud-Anmeldung und kein Abonnement. Auch Geräte ohne Home-Assistant-Zuordnung können erfasst werden.
 
-The setup flow is available in English and German. This first public release uses German dashboard text, `dd.mm.yy` dates and decimal points. The currency for costs is configurable; existing installations retain CHF, while a fresh setup uses the Home Assistant currency when available. The integration name remains Wartungs-Manager in both languages.
+Die Einrichtung ist auf Deutsch und Englisch verfügbar. Die Oberfläche dieser ersten öffentlichen Version ist deutsch. Datumsformat: `dd.mm.yy`; Dezimalzeichen: Punkt. Die Währung für Kosten ist einstellbar. Vorhandene Installationen behalten CHF; eine neue Einrichtung verwendet die Home-Assistant-Währung, sofern vorhanden.
 
 ## Installation
 
-### Marketplace or HACS
+### Marketplace oder HACS
 
-[Open this repository in Home Assistant](https://my.home-assistant.io/redirect/hacs_repository/?owner=Raffaelloo22&repository=homeassistant-wartungs-manager&category=integration).
+[Repository in Home Assistant öffnen](https://my.home-assistant.io/redirect/hacs_repository/?owner=Raffaelloo22&repository=homeassistant-wartungs-manager&category=integration).
 
-Before the repository is included in the shared catalog, add `https://github.com/Raffaelloo22/homeassistant-wartungs-manager` as a custom repository of type **Integration** in Marketplace or HACS. Download a release and follow the restart prompt if Home Assistant shows one.
+Solange das Repository noch nicht im gemeinsamen Katalog gelistet ist, `https://github.com/Raffaelloo22/homeassistant-wartungs-manager` als benutzerdefiniertes Repository mit Typ **Integration** hinzufügen. Einen Release herunterladen und einem angezeigten Neustart-Hinweis folgen.
 
-Then open **Settings → Devices & services → Add integration**, search for **Wartungs-Manager**, and complete setup. Open **Wartung** in the sidebar.
+Anschliessend unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach **Wartungs-Manager** suchen. Nach der Einrichtung steht **Wartung** in der Seitenleiste zur Verfügung.
 
-[Start the integration setup](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_wartung).
+[Einrichtung direkt starten](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_wartung).
 
-Marketplace is built into Home Assistant starting with 2026.11 and uses the same repository catalog as HACS. Catalog inclusion is a separate review; a working installation link does not mean this repository has been accepted into the catalog.
+Der Marketplace ist seit Home Assistant 2026.11 eingebaut und nutzt denselben Katalog wie HACS. Die Aufnahme in diesen Katalog wird gesondert geprüft; ein funktionierender Installationslink bedeutet noch keine Katalogaufnahme.
 
-### Manual installation
+### Manuell
 
-1. Download a release from this repository.
-2. Copy the `custom_components/ha_wartung` directory into your Home Assistant configuration directory's `custom_components` directory. Preserve the folder name `ha_wartung`.
-3. Restart Home Assistant.
-4. Add **Wartungs-Manager** under **Settings → Devices & services**.
+1. Einen Release herunterladen.
+2. Den Ordner `custom_components/ha_wartung` in das Home-Assistant-Konfigurationsverzeichnis unter `custom_components` kopieren. Den Namen `ha_wartung` beibehalten.
+3. Home Assistant neu starten.
+4. Die Integration unter **Einstellungen → Geräte & Dienste** hinzufügen.
 
-Only one Wartungs-Manager directory is configured per Home Assistant instance. It starts empty: the release contains no household records, imported devices or example tasks.
+Pro Home-Assistant-Instanz gibt es ein Wartungsverzeichnis. Es startet leer; der Release enthält keine Haushaltsdaten, importierten Geräte oder Beispielaufgaben.
 
-## First steps
+## Erste Schritte
 
-1. Open **Geräte** and add a device, or use **Sammelerfassung von Home Assistant Geräten** to preview selected device types before importing them.
-2. Assign a category and, for replaceable batteries, enter the battery type and quantity. Areas come from the linked Home Assistant device.
-3. Open a device and choose **Neue Aufgabe**. A new task defaults to **Termin**, a one-off date. Use an interval, season or rotation for work that repeats.
-4. Add batteries and materials in **Verbrauchsmaterial**, then link them to the relevant tasks and devices.
-5. Record completions in **Aufgaben**. The completion dialog asks before reducing linked stock. A completion can be undone for 30 seconds; history remains editable later.
+1. Unter **Geräte** ein neues Gerät anlegen oder **Sammelerfassung von Home Assistant Geräten** wählen. Gerätetypen und Vorschau vor der Übernahme prüfen.
+2. Kategorie festlegen und bei Wechselbatterien Typ und Anzahl eintragen. Der Bereich stammt aus der Home-Assistant-Gerätezuordnung.
+3. In der Geräteakte **Neue Aufgabe** wählen. Neue Aufgaben starten mit **Termin**. Wiederkehrende Arbeiten über Intervall, Saison oder Rotation planen.
+4. Unter **Verbrauchsmaterial** Bestände erfassen und Material mit Aufgaben und Geräten verknüpfen.
+5. Unter **Aufgaben** Erledigungen erfassen. Der Dialog fragt einen Bestandsabzug ab. Für 30 Sekunden steht **Rückgängig** bereit; Historieneinträge lassen sich auch danach bearbeiten.
 
-For task periods, **Jetzt** means due or requiring attention. **Bald** covers tomorrow through the next 14 days, inclusive. **Alle** shows all open tasks. A completed one-off task stays in history; a completed recurring task is grouped with its next date in the device record until it becomes due again.
+**Jetzt** enthält fällige oder zu klärende Aufgaben. **Bald** umfasst morgen bis einschliesslich in 14 Tagen. **Alle** zeigt alle offenen Aufgaben. Erledigte einmalige Aufgaben stehen in der Historie. Wiederkehrende Aufgaben stehen bis zur nächsten Fälligkeit unter **Erledigte Aufgaben** in der Geräteakte.
 
-## Battery warnings and sensor tasks
+## Batteriewarnung und Messwertaufgaben
 
-Battery warnings use `input_number.batterien_schwellwert` by default. The dashboard checks for this default helper when opened and creates it with an initial value of 20% if it does not exist. It preserves an existing helper and its value. In the general settings, you can select an existing `input_number` helper instead. The slider in **Einstellungen → Batteriewarnung** writes to the selected helper. You can also configure the currency used for costs in the general settings.
+Die Batteriewarnung verwendet standardmässig `input_number.batterien_schwellwert`. Beim Öffnen prüft die App diesen Standardhelfer und legt ihn bei Bedarf mit 20% an. Vorhandene Werte bleiben erhalten. In den allgemeinen Einstellungen kann stattdessen ein vorhandener `input_number`-Helfer gewählt werden. Der Schieberegler unter **Einstellungen → Batteriewarnung** schreibt direkt in den ausgewählten Helfer. Die Währung für Kosten lässt sich ebenfalls in den allgemeinen Einstellungen festlegen.
 
-A valid battery percentage triggers a warning only when it is **strictly below** the threshold. An unknown, unavailable or invalid battery level does not trigger a percentage warning. If the helper is absent or unavailable, the dashboard identifies the fallback threshold of 20%. Archived, stored and trashed devices are excluded, as are devices whose battery warning is disabled.
+Eine Warnung erscheint bei gültigem Batteriestand strikt unter der Schwelle. Unbekannte und ungültige Werte lösen keine Prozentwarnung aus. Bei nicht verfügbarem Helfer gilt ein gekennzeichneter Ersatzwert von 20%. Lager-, Archiv- und Papierkorb-Geräte sowie Geräte mit deaktivierter Batteriewarnung sind ausgeschlossen.
 
-These percentage warnings are calculated in the dashboard. They are not separate persisted maintenance rules and are currently **not included in the weekly summary**. Recording a battery change does not change the physical sensor's reported percentage.
+Prozentwarnungen werden in der Oberfläche berechnet. Sie sind keine separat gespeicherten Wartungsregeln und derzeit **nicht Teil der Wochenmeldung**. Ein erfasster Batteriewechsel verändert den vom Gerät gemeldeten Prozentwert nicht.
 
-A **Messwert** task uses a selected Home Assistant sensor and a numerical threshold. The form shows the current sensor value and unit. Unknown, unavailable, restored or non-numerical values remain pending. After completion, a newer Home Assistant report is required before the task can become due again. A Home Assistant state report is not proof of a new physical measurement.
+Für **Messwert** genügen Sensor und Schwelle. Das Formular zeigt den aktuellen Wert samt Einheit. Unbekannte, nicht verfügbare, wiederhergestellte oder nicht numerische Werte bleiben ausstehend. Nach einer Erledigung wird eine neuere HA-Meldung abgewartet. Diese bestätigt keinen neuen physischen Messvorgang.
 
-## Data, backups and updates
+## Daten, Sicherung und Updates
 
-Device records, tasks, history, stock and settings are stored locally through Home Assistant's storage API, outside the integration's code directory. A full Home Assistant backup that includes the configuration directory includes these files. There is no telemetry or automatic upload of maintenance records.
+Die Daten liegen lokal im Home-Assistant-Integrationsspeicher ausserhalb des Code-Verzeichnisses. Eine vollständige Home-Assistant-Sicherung mit Konfigurationsverzeichnis enthält sie. Es gibt keine Telemetrie oder automatische Übermittlung der Wartungsdaten.
 
-**Einstellungen → Daten exportieren und importieren** provides a separate JSON export. Exports can contain device names, serial numbers, notes and purchase information; treat them as private. Import replaces the existing directory and requires explicit confirmation. It is not a merge.
+Unter **Einstellungen → Daten exportieren und importieren** kann das Verzeichnis zusätzlich als JSON gespeichert werden. Exporte enthalten unter Umständen Namen, Seriennummern, Notizen und Kaufdaten. Sie sind privat zu behandeln. Ein Import ersetzt nach Bestätigung das vorhandene Verzeichnis; er führt es nicht zusammen.
 
-Update through Marketplace or HACS, then follow Home Assistant's restart prompt. Keep a current Home Assistant backup before updating. The integration domain and storage name remain `ha_wartung`, preserving existing directories when this package replaces an earlier installation of the same integration. Do not install two repositories providing this domain at the same time.
+Updates über Marketplace oder HACS installieren und anschliessend einem Neustart-Hinweis folgen. Vor dem Update eine aktuelle HA-Sicherung erstellen. Die Domäne und der Speichername bleiben `ha_wartung`; vorhandene Verzeichnisse bleiben beim Austausch einer älteren Installation derselben Integration erhalten. Zwei Repositories mit dieser Domäne dürfen nicht gleichzeitig installiert werden.
 
-**Daten zurücksetzen** permanently clears device, task, history, purchasing and consumable data. It retains category and event-type names and order, and general settings. It does not remove Home Assistant devices, entities, automations or the threshold helper.
+**Daten zurücksetzen** entfernt Geräte, Aufgaben, Historie, Nachkäufe und Verbrauchsmaterial endgültig. Kategorien, Ereignisarten mit Reihenfolge sowie allgemeine Einstellungen bleiben erhalten. Home-Assistant-Geräte, Helfer, Entitäten und Automationen werden nicht entfernt.
 
-## Removing the integration
+## Entfernen und erneute Einrichtung
 
-Remove **Wartungs-Manager** under **Settings → Devices & services**, then remove its code through Marketplace or HACS and restart when prompted. This removes the sidebar panel; it does not erase saved maintenance data or the battery threshold helper. Re-adding the integration can load the retained directory.
+Die Integration unter **Einstellungen → Geräte & Dienste** entfernen, danach ihren Code über Marketplace oder HACS entfernen und gegebenenfalls neu starten. Der Seitenleisteneintrag verschwindet. Wartungsdaten und Batterieschwellenwert-Helfer bleiben erhalten. Bei erneuter Einrichtung kann das gespeicherte Verzeichnis wieder geladen werden.
 
-If you want to erase the maintenance directory, export anything you need and use **Daten zurücksetzen** before removing the integration. That reset retains general settings, categories and event types. Remove an unused threshold helper separately in Home Assistant only after checking that no other automation or dashboard uses it. Do not edit `.storage` files by hand.
+Wer die Wartungsdaten entfernen möchte, exportiert vorher benötigte Angaben und führt **Daten zurücksetzen** vor dem Entfernen der Integration aus. Dieser Vorgang behält allgemeine Einstellungen, Kategorien und Ereignisarten. Einen nicht mehr benötigten Helfer separat in Home Assistant entfernen und vorher prüfen, ob ihn andere Automationen oder Dashboards nutzen. `.storage`-Dateien nicht von Hand bearbeiten.
 
-## Troubleshooting and limits
+## Fehlerbehebung und Einschränkungen
 
-- **No sidebar entry:** sign in as an administrator, confirm that the integration was added, then reload the page. After an update, follow any restart prompt.
-- **Sensor task remains pending:** check that the selected sensor exists and reports a number. A text state such as `not_charging` cannot be compared with a percentage threshold.
-- **Battery task remains after a change:** the reported battery percentage still controls the warning. The sensor may need time to report a new value.
-- **Duplicate import concern:** review the import preview. Existing Home Assistant device links and name conflicts are skipped; differently named manual records need your review.
-- **Unexpected stock:** check the linked task material and its quantity. Negative stock represents missing items; it is permitted for other consumables.
-- **Weekly summaries:** these are persistent notifications inside Home Assistant, not mobile push messages or email. Their planning horizon is seven days, while the dashboard's **Bald** filter uses 14 days.
+- **Seitenleiste fehlt:** Als Administrator anmelden, Einrichtung prüfen und Seite neu laden. Nach Updates einem Neustart-Hinweis folgen.
+- **Messwert ausstehend:** Der Sensor muss existieren und eine Zahl liefern. Ein Textwert wie `not_charging` ist kein Batterie-Prozentwert.
+- **Batteriewarnung bleibt:** Entscheidend ist die gemeldete Prozentzahl. Nach einem Wechsel muss der Sensor einen neuen Wert melden.
+- **Duplikate bei der Sammelerfassung:** Die Vorschau prüfen. Vorhandene HA-Zuordnungen und Namenskonflikte werden übersprungen; anders benannte manuelle Akten selbst beurteilen.
+- **Bestand unerwartet:** Materialzuordnung und Verbrauchsmenge der Aufgabe prüfen. Negative Bestände zeigen bei weiterem Verbrauchsmaterial fehlende Mengen an.
+- **Wochenmeldung:** Sie erscheint als persistente Mitteilung in Home Assistant und wird nicht per E-Mail oder mobilem Push versendet. Ihre Vorschau umfasst sieben Tage; der Filter **Bald** auf dem Dashboard umfasst 14 Tage.
 
-Use [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) for bugs and feature requests. Include the Home Assistant version, Wartungs-Manager version and steps to reproduce, with anonymized screenshots or logs. Do not post exports, access tokens or private household information. See [SECURITY.md](SECURITY.md) for security reports and [CONTRIBUTING.md](CONTRIBUTING.md) for development.
+Fehler und Wünsche über [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) melden. Versionen, reproduzierbare Schritte und anonymisierte Screenshots oder Logs angeben. Keine Exporte, Zugriffstoken oder privaten Haushaltsangaben veröffentlichen. Sicherheitshinweise stehen in [SECURITY.md](SECURITY.md), Entwicklungsinformationen in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## License
+## Lizenz
 
 [MIT](LICENSE). Copyright © 2026 Raffaelloo22.

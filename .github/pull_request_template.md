@@ -1,11 +1,11 @@
-## Problem and behavior
+## Problem und Verhalten
 
-Describe the concrete problem and the resulting behavior.
+Beschreibe das konkrete Problem und das Verhalten nach der Änderung.
 
-## Validation
+## Prüfung
 
-List relevant checks and any tests on a disposable Home Assistant instance.
+Nenne die relevanten Prüfungen und gegebenenfalls Tests auf einer entbehrlichen Home-Assistant-Instanz.
 
-- [ ] Tests use synthetic data.
-- [ ] Existing stored data remains compatible.
-- [ ] Documentation reflects user-visible changes.
+- [ ] Die Tests verwenden erfundene Daten.
+- [ ] Bereits gespeicherte Daten bleiben kompatibel.
+- [ ] Die Dokumentation beschreibt Änderungen, die für Nutzerinnen und Nutzer sichtbar sind.
