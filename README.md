@@ -6,6 +6,14 @@ A local maintenance dashboard for Home Assistant: device records, recurring and 
 
 [Deutsche Anleitung](README.de.md) · [Report a problem](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
+## Preview
+
+Screenshots from an isolated Home Assistant test installation using fictitious records. The installed integration starts empty.
+
+![Device directory on desktop](docs/images/devices-desktop.jpg)
+
+<img src="docs/images/consumables-mobile.jpg" alt="Compact consumable inventory on a phone" width="320">
+
 ## What it does
 
 - Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.

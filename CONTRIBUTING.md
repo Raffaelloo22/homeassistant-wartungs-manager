@@ -16,6 +16,14 @@ node --check custom_components/ha_wartung/frontend/panel.js
 
 Use a separate, disposable Home Assistant instance for integration tests and browser checks. Do not point tests at a household instance. GitHub Actions runs the release validation, Python and frontend checks, and the Home Assistant lifecycle tests configured in the workflow files.
 
+Run the real lifecycle suite with Docker and an official Home Assistant image:
+
+```sh
+python3 scripts/test_ha_lifecycle.py --version 2026.11.2
+```
+
+The runner creates an isolated temporary configuration, binds only to localhost, tests installation, restart, update and reinstallation, and removes its test container afterwards. `--keep` retains the synthetic test environment for browser checks.
+
 Preserve the `ha_wartung` domain and existing storage compatibility. New settings need defaults that preserve existing installations. Avoid changing device, entity or helper identifiers automatically.
 
 ## Test data and reports

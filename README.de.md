@@ -4,6 +4,14 @@ Lokale Geräteakten, Wartungsaufgaben, Historie und Verbrauchsmaterial für Home
 
 [English documentation](README.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
+## Vorschau
+
+Die Bilder stammen aus einer isolierten Home-Assistant-Testinstallation mit erfundenen Einträgen. Die Integration startet ohne Gerätedaten.
+
+![Geräteübersicht auf dem Desktop](docs/images/devices-desktop.jpg)
+
+<img src="docs/images/consumables-mobile.jpg" alt="Kompakte Verbrauchsmaterialansicht auf dem Smartphone" width="320">
+
 ## Funktionen
 
 - Geräte manuell erfassen oder mit Home-Assistant-Geräten verknüpfen; Sammelerfassung mit Vorschau und Duplikatprüfung.

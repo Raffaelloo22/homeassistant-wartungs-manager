@@ -59,7 +59,10 @@ logger:
     print("Testing real Home Assistant " + args.version + " in " + name, flush=True)
     started = False
     try:
-        docker("run", "--detach", "--name", name, "--publish", f"127.0.0.1:{args.port}:8123",
+        # Core runs as root on Linux. Keep bytecode out of the host-owned
+        # component directory so replacing it also works on GitHub runners.
+        docker("run", "--detach", "--name", name, "--env", "PYTHONDONTWRITEBYTECODE=1",
+               "--publish", f"127.0.0.1:{args.port}:8123",
                "--volume", f"{config}:/config", "--volume", f"{ROOT / 'scripts'}:/qa:ro", image)
         started = True
         def probe(phase):
