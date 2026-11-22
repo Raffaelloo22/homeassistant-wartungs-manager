@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible Wartungs-Manager problem.
+body:
+  - type: markdown
+    attributes:
+      value: Please remove tokens, serial numbers, household names and other private data from logs or screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: Wartungs-Manager version
+    validations:
+      required: true
+  - type: input
+    id: homeassistant
+    attributes:
+      label: Home Assistant version and installation type
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include what you expected and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Anonymized logs or screenshots
+      description: Never attach a real directory export or Home Assistant backup.

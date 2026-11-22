@@ -1,0 +1,14 @@
+{
+  "title": "Wartungs-Manager",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wartungs-Manager",
+        "description": "Lokale Geräteakten, Wartungsaufgaben und Historie einrichten. Die Daten bleiben in Home Assistant. Die Verwaltungsoberfläche ist für Home-Assistant-Administratoren zugänglich."
+      }
+    },
+    "abort": {
+      "already_configured": "Der Wartungs-Manager ist bereits eingerichtet."
+    }
+  }
+}

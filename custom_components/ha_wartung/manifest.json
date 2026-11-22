@@ -1,0 +1,24 @@
+{
+  "domain": "ha_wartung",
+  "name": "Wartungs-Manager",
+  "categories": [
+    "productivity_information"
+  ],
+  "codeowners": [
+    "@Raffaelloo22"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "persistent_notification",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/Raffaelloo22/homeassistant-wartungs-manager#readme",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues",
+  "requirements": [],
+  "version": "1.1.0"
+}

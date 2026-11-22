@@ -1,0 +1,99 @@
+# Wartungs-Manager
+
+Lokale Geräteakten, Wartungsaufgaben, Historie und Verbrauchsmaterial für Home Assistant.
+
+[English documentation](README.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
+
+## Funktionen
+
+- Geräte manuell erfassen oder mit Home-Assistant-Geräten verknüpfen; Sammelerfassung mit Vorschau und Duplikatprüfung.
+- Einmalige Termine, Intervalle, Saisonaufgaben, Rotationen und Aufgaben nach Sensorwert oder Geräteanzeige.
+- Erledigungen mit Datum, Kosten und Notizen dokumentieren; Historie bearbeiten und Bestandsabzüge bestätigen.
+- Batterien und weiteres Verbrauchsmaterial mit Mengen, Nachkaufgrenzen, Notizen und Gerätezuordnung verwalten.
+- Niedrige Batteriestände in der Aufgabenansicht anzeigen und Einkäufe vormerken.
+- Aktive Geräte, Lager, Archiv und Papierkorb; Kategorien und Ereignisarten bearbeiten.
+- JSON-Export und bestätigter Import sowie eine optionale Wochenmeldung innerhalb Home Assistant.
+
+Auf Smartphones sind die Reiter als Symbole dargestellt. Verbrauchsmaterial-Kacheln zeigen die antippbare Bestandszahl und eine kompakte Aktionszeile.
+
+## Voraussetzungen
+
+- Home Assistant **2026.11.0 oder neuer**.
+- Ein Administratorenkonto in Home Assistant. Oberfläche und Schnittstelle sind nur für Administratoren zugänglich.
+- Keine Cloud-Anmeldung und kein Abonnement. Auch Geräte ohne Home-Assistant-Zuordnung können erfasst werden.
+
+Die Einrichtung ist auf Deutsch und Englisch verfügbar. Die Oberfläche dieser ersten öffentlichen Version ist deutsch. Datumsformat: `dd.mm.yy`; Dezimalzeichen: Punkt. Die Währung für Kosten ist einstellbar. Vorhandene Installationen behalten CHF; eine neue Einrichtung verwendet die Home-Assistant-Währung, sofern vorhanden.
+
+## Installation
+
+### Marketplace oder HACS
+
+[Repository in Home Assistant öffnen](https://my.home-assistant.io/redirect/hacs_repository/?owner=Raffaelloo22&repository=homeassistant-wartungs-manager&category=integration).
+
+Solange das Repository noch nicht im gemeinsamen Katalog gelistet ist, `https://github.com/Raffaelloo22/homeassistant-wartungs-manager` als benutzerdefiniertes Repository mit Typ **Integration** hinzufügen. Einen Release herunterladen und einem angezeigten Neustart-Hinweis folgen.
+
+Anschliessend unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach **Wartungs-Manager** suchen. Nach der Einrichtung steht **Wartung** in der Seitenleiste zur Verfügung.
+
+[Einrichtung direkt starten](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_wartung).
+
+Der Marketplace ist seit Home Assistant 2026.11 eingebaut und nutzt denselben Katalog wie HACS. Die Aufnahme in diesen Katalog wird gesondert geprüft; ein funktionierender Installationslink bedeutet noch keine Katalogaufnahme.
+
+### Manuell
+
+1. Einen Release herunterladen.
+2. Den Ordner `custom_components/ha_wartung` in das Home-Assistant-Konfigurationsverzeichnis unter `custom_components` kopieren. Den Namen `ha_wartung` beibehalten.
+3. Home Assistant neu starten.
+4. Die Integration unter **Einstellungen → Geräte & Dienste** hinzufügen.
+
+Pro Home-Assistant-Instanz gibt es ein Wartungsverzeichnis. Es startet leer; der Release enthält keine Haushaltsdaten, importierten Geräte oder Beispielaufgaben.
+
+## Erste Schritte
+
+1. Unter **Geräte** ein neues Gerät anlegen oder **Sammelerfassung von Home Assistant Geräten** wählen. Gerätetypen und Vorschau vor der Übernahme prüfen.
+2. Kategorie festlegen und bei Wechselbatterien Typ und Anzahl eintragen. Der Bereich stammt aus der Home-Assistant-Gerätezuordnung.
+3. In der Geräteakte **Neue Aufgabe** wählen. Neue Aufgaben starten mit **Termin**. Wiederkehrende Arbeiten über Intervall, Saison oder Rotation planen.
+4. Unter **Verbrauchsmaterial** Bestände erfassen und Material mit Aufgaben und Geräten verknüpfen.
+5. Unter **Aufgaben** Erledigungen erfassen. Der Dialog fragt einen Bestandsabzug ab. Für 30 Sekunden steht **Rückgängig** bereit; Historieneinträge lassen sich auch danach bearbeiten.
+
+**Jetzt** enthält fällige oder zu klärende Aufgaben. **Bald** umfasst morgen bis einschliesslich in 14 Tagen. **Alle** zeigt alle offenen Aufgaben. Erledigte einmalige Aufgaben stehen in der Historie. Wiederkehrende Aufgaben stehen bis zur nächsten Fälligkeit unter **Erledigte Aufgaben** in der Geräteakte.
+
+## Batteriewarnung und Messwertaufgaben
+
+Die Batteriewarnung verwendet standardmässig `input_number.batterien_schwellwert`. Beim Öffnen prüft die App diesen Standardhelfer und legt ihn bei Bedarf mit 20% an. Vorhandene Werte bleiben erhalten. In den allgemeinen Einstellungen kann stattdessen ein vorhandener `input_number`-Helfer gewählt werden. Der Schieberegler unter **Einstellungen → Batteriewarnung** schreibt direkt in den ausgewählten Helfer. Die Währung für Kosten lässt sich ebenfalls in den allgemeinen Einstellungen festlegen.
+
+Eine Warnung erscheint bei gültigem Batteriestand strikt unter der Schwelle. Unbekannte und ungültige Werte lösen keine Prozentwarnung aus. Bei nicht verfügbarem Helfer gilt ein gekennzeichneter Ersatzwert von 20%. Lager-, Archiv- und Papierkorb-Geräte sowie Geräte mit deaktivierter Batteriewarnung sind ausgeschlossen.
+
+Prozentwarnungen werden in der Oberfläche berechnet. Sie sind keine separat gespeicherten Wartungsregeln und derzeit **nicht Teil der Wochenmeldung**. Ein erfasster Batteriewechsel verändert den vom Gerät gemeldeten Prozentwert nicht.
+
+Für **Messwert** genügen Sensor und Schwelle. Das Formular zeigt den aktuellen Wert samt Einheit. Unbekannte, nicht verfügbare, wiederhergestellte oder nicht numerische Werte bleiben ausstehend. Nach einer Erledigung wird eine neuere HA-Meldung abgewartet. Diese bestätigt keinen neuen physischen Messvorgang.
+
+## Daten, Sicherung und Updates
+
+Die Daten liegen lokal im Home-Assistant-Integrationsspeicher ausserhalb des Code-Verzeichnisses. Eine vollständige Home-Assistant-Sicherung mit Konfigurationsverzeichnis enthält sie. Es gibt keine Telemetrie oder automatische Übermittlung der Wartungsdaten.
+
+Unter **Einstellungen → Daten exportieren und importieren** kann das Verzeichnis zusätzlich als JSON gespeichert werden. Exporte enthalten unter Umständen Namen, Seriennummern, Notizen und Kaufdaten. Sie sind privat zu behandeln. Ein Import ersetzt nach Bestätigung das vorhandene Verzeichnis; er führt es nicht zusammen.
+
+Updates über Marketplace oder HACS installieren und anschliessend einem Neustart-Hinweis folgen. Vor dem Update eine aktuelle HA-Sicherung erstellen. Die Domäne und der Speichername bleiben `ha_wartung`; vorhandene Verzeichnisse bleiben beim Austausch einer älteren Installation derselben Integration erhalten. Zwei Repositories mit dieser Domäne dürfen nicht gleichzeitig installiert werden.
+
+**Daten zurücksetzen** entfernt Geräte, Aufgaben, Historie, Nachkäufe und Verbrauchsmaterial endgültig. Kategorien, Ereignisarten mit Reihenfolge sowie allgemeine Einstellungen bleiben erhalten. Home-Assistant-Geräte, Helfer, Entitäten und Automationen werden nicht entfernt.
+
+## Entfernen und erneute Einrichtung
+
+Die Integration unter **Einstellungen → Geräte & Dienste** entfernen, danach ihren Code über Marketplace oder HACS entfernen und gegebenenfalls neu starten. Der Seitenleisteneintrag verschwindet. Wartungsdaten und Batterieschwellenwert-Helfer bleiben erhalten. Bei erneuter Einrichtung kann das gespeicherte Verzeichnis wieder geladen werden.
+
+Wer die Wartungsdaten entfernen möchte, exportiert vorher benötigte Angaben und führt **Daten zurücksetzen** vor dem Entfernen der Integration aus. Dieser Vorgang behält allgemeine Einstellungen, Kategorien und Ereignisarten. Einen nicht mehr benötigten Helfer separat in Home Assistant entfernen und vorher prüfen, ob ihn andere Automationen oder Dashboards nutzen. `.storage`-Dateien nicht von Hand bearbeiten.
+
+## Fehlerbehebung und Einschränkungen
+
+- **Seitenleiste fehlt:** Als Administrator anmelden, Einrichtung prüfen und Seite neu laden. Nach Updates einem Neustart-Hinweis folgen.
+- **Messwert ausstehend:** Der Sensor muss existieren und eine Zahl liefern. Ein Textwert wie `not_charging` ist kein Batterie-Prozentwert.
+- **Batteriewarnung bleibt:** Entscheidend ist die gemeldete Prozentzahl. Nach einem Wechsel muss der Sensor einen neuen Wert melden.
+- **Duplikate bei der Sammelerfassung:** Die Vorschau prüfen. Vorhandene HA-Zuordnungen und Namenskonflikte werden übersprungen; anders benannte manuelle Akten selbst beurteilen.
+- **Bestand unerwartet:** Materialzuordnung und Verbrauchsmenge der Aufgabe prüfen. Negative Bestände zeigen bei weiterem Verbrauchsmaterial fehlende Mengen an.
+- **Wochenmeldung:** Sie erscheint als persistente Mitteilung in Home Assistant und wird nicht per E-Mail oder mobilem Push versendet. Ihre Vorschau umfasst sieben Tage; der Filter **Bald** auf dem Dashboard umfasst 14 Tage.
+
+Fehler und Wünsche über [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) melden. Versionen, reproduzierbare Schritte und anonymisierte Screenshots oder Logs angeben. Keine Exporte, Zugriffstoken oder privaten Haushaltsangaben veröffentlichen. Sicherheitshinweise stehen in [SECURITY.md](SECURITY.md), Entwicklungsinformationen in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Lizenz
+
+[MIT](LICENSE). Copyright © 2026 Raffaelloo22.

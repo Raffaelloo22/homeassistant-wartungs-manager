@@ -1,0 +1,14 @@
+{
+  "title": "Wartungs-Manager",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wartungs-Manager",
+        "description": "Set up local device records, maintenance tasks and history. Data stays in Home Assistant. The management dashboard is available to Home Assistant administrators."
+      }
+    },
+    "abort": {
+      "already_configured": "Wartungs-Manager is already configured."
+    }
+  }
+}
