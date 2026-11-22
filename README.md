@@ -25,16 +25,16 @@ Die tatsächliche Erledigung, verbrauchte Mengen und Einkäufe werden von dir be
 
 ## Screenshots
 
-Die drei Übersichtsbilder zeigen eine eingerichtete Installation. Geräteakte, Erledigungsdialog und Smartphone-Aufnahme stammen aus einer separaten Testinstanz mit erfundenen Daten. Eine neue Installation startet ohne Geräte oder Beispielaufgaben.
+Die ersten drei Screenshots zeigen eine eingerichtete Installation. Die zusätzlich als Demobilder gekennzeichneten Aufnahmen stammen aus einer separaten Testinstanz mit erfundenen Daten. Eine neue Installation startet ohne Geräte oder Beispielaufgaben.
 
 **Aufgaben:** Fällige Arbeiten, Batterieanzahl und -typ sowie Nachkaufbedarf in einer Ansicht.
 
 ![Aufgaben mit Wartungsterminen, Batterieangaben und Nachkäufen](docs/images/tasks-desktop.jpg)
 
 <details>
-<summary>Geräteübersicht mit Kategorien, Verbrauchsmaterial und Batterieangaben</summary>
+<summary>Geräteakte der Kaffeemaschine mit Aufgaben und Historie</summary>
 
-![Geräteübersicht mit Kategorien und Materialzuordnungen](docs/images/devices-desktop.jpg)
+![Kaffeemaschinen-Geräteakte mit Verbrauchsmaterial, Aufgaben und Wartungshistorie](docs/images/device-coffee-desktop.jpg)
 
 </details>
 

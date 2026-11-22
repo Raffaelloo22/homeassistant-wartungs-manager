@@ -25,14 +25,14 @@ Completions, consumption and purchases need your confirmation. Purchase reminder
 
 ## Screenshots
 
-The three overview images show a configured installation. The device record, completion dialog and phone view use fictional records in an isolated test installation. New installations start empty.
+The first three screenshots show a configured installation. Additional images labelled as fictional examples use an isolated test installation. New installations start empty.
 
 ![Tasks with due dates, battery quantities and purchase reminders](docs/images/tasks-desktop.jpg)
 
 <details>
-<summary>Device overview</summary>
+<summary>Coffee machine record with tasks and service history</summary>
 
-![Devices grouped by category, with consumables and battery information](docs/images/devices-desktop.jpg)
+![Coffee machine record with linked consumables, tasks and maintenance history](docs/images/device-coffee-desktop.jpg)
 
 </details>
 
