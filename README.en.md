@@ -2,26 +2,73 @@
 
 <img src="custom_components/ha_wartung/brand/icon.png" alt="Wartungs-Manager icon" width="64" height="64">
 
-A local maintenance dashboard for Home Assistant: device records, recurring and one-off tasks, service history, batteries and other consumables.
+Automated maintenance planning and consumable stock management for Home Assistant, with device records, sensor-based tasks and an editable service history.
+
+Configure rules and links once: Wartungs-Manager calculates due dates, displays battery warnings and creates purchase reminders when stock runs low. Confirmed completions record history, advance recurring work and optionally deduct linked materials.
 
 [Deutsche Anleitung](README.md) · [Report a problem](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
-## Preview
+## Automatic workflows
 
-Screenshots from an isolated Home Assistant test installation using fictitious records. The installed integration starts empty.
+| Workflow | What happens |
+| --- | --- |
+| **Due dates and cycles** | Saved rules calculate overdue, current and future work. Completing an interval task schedules its next date from the actual completion. Seasonal cycles and rotating work steps advance when completed. |
+| **Sensor-based maintenance** | A valid numeric Home Assistant sensor reading strictly below the configured threshold makes a task due. Unavailable or invalid readings remain pending. |
+| **Battery warnings** | The open dashboard adds a battery-change task when a valid percentage is strictly below the shared helper value. Battery quantity and type come from the device record. |
+| **Confirmed stock usage** | A completion can deduct its linked material. Battery quantity comes from the device; other material quantities come from the task or current rotation step. The dialog previews the resulting stock before confirmation. |
+| **Purchase reminders** | Stock at or below an item's threshold creates a purchase reminder. A recorded purchase adds the entered quantity; the automatic reminder is complete once stock exceeds the threshold. |
+| **Device capture** | Confirmed bulk capture classifies selected HA devices, suggests categories and checks existing links and possible duplicates. Areas follow the linked HA device. |
+| **Purchase dates** | A dated purchase/order event fills an empty device purchase date while preserving an existing date. |
+| **Weekly summary** | An optional scheduled Home Assistant persistent notification summarizes stored maintenance tasks and open purchases, even while the dashboard is closed. |
 
-![Device directory on desktop](docs/images/devices-desktop.jpg)
+Completions, consumption and purchases need your confirmation. Purchase reminders do not place orders. Percentage-based battery warnings are calculated in the open dashboard and are not part of the background weekly summary.
 
-<img src="docs/images/consumables-mobile.jpg" alt="Compact consumable inventory on a phone" width="320">
+## Screenshots
+
+The three overview images show a configured installation. The device record, completion dialog and phone view use fictional records in an isolated test installation. New installations start empty.
+
+![Tasks with due dates, battery quantities and purchase reminders](docs/images/tasks-desktop.jpg)
+
+<details>
+<summary>Device overview</summary>
+
+![Devices grouped by category, with consumables and battery information](docs/images/devices-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Battery and consumable inventory</summary>
+
+![Stock, purchase thresholds, notes and inventory actions](docs/images/consumables-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Device record and completion dialog — fictional examples</summary>
+
+![Device record showing purchase date, recurring work and recorded material consumption](docs/images/device-detail-desktop.jpg)
+
+<img src="docs/images/completion-dialog.jpg" alt="Completion dialog with date, material quantity and stock preview" width="640">
+
+</details>
+
+<details>
+<summary>Phone layout — fictional example</summary>
+
+<img src="docs/images/consumables-mobile.jpg" alt="Compact stock buttons, notes and actions on a phone" width="320">
+
+</details>
 
 ## What it does
 
 - Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.
-- Plan tasks by date, interval, season, rotation, sensor value or device indication. Record completion dates, costs and notes, and edit the resulting history.
+- Plan tasks by one-off date, interval, annual season, rotating work steps, sensor value, device indication or without a due date. A rotation can link a different material to each step. Record completion dates, costs and notes, and edit the resulting history.
 - Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
-- Track stock, purchase thresholds, purchase requests, notes and the devices that use each item.
+- Track stock, individual purchase thresholds, purchase requests, notes and the devices that use each item. Battery usage lists include the required quantity per device; linked purchase notes are shared with the material.
 - Find low batteries in the task view using a shared Home Assistant threshold helper.
-- Organize devices as active, stored, archived or in the trash; edit categories and event types.
+- Organize devices as active, stored, archived or in the trash; link related devices in both directions, and edit or reorder categories and event types. Stored and archived devices retain history without active reminders.
+- Run a read-only data check for missing HA links, invalid material assignments, incomplete battery details and possible duplicates.
+- Undo a recent completion for 30 seconds, including its associated stock deduction. History corrections update linked maintenance state; removing a recorded consumption returns its quantity to current stock.
 - Export and import the directory as JSON. An optional weekly summary appears as a Home Assistant persistent notification.
 
 The dashboard has **Aufgaben** (tasks), **Geräte** (devices), **Verbrauchsmaterial** (consumables), **Log** and **Einstellungen** (settings). On phones, the tabs use icons and consumables use compact cards with a stock button and an actions menu.

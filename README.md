@@ -2,29 +2,128 @@
 
 <img src="custom_components/ha_wartung/brand/icon.png" alt="Wartungs-Manager-Symbol" width="64" height="64">
 
-Lokale Geräteakten, Wartungsaufgaben, Historie und Verbrauchsmaterial für Home Assistant.
+Automatisierte Wartungsplanung und Vorratsverwaltung für Home Assistant – mit Geräteakten, sensorabhängigen Aufgaben und einer nachvollziehbaren Historie.
+
+Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligkeiten, zeigt Batteriewarnungen an und erstellt Nachkaufaufträge bei niedrigen Beständen. Bestätigte Erledigungen schreiben die Historie und die nächste Wartung fort; verknüpftes Verbrauchsmaterial wird nach deiner Bestätigung vom Bestand abgezogen.
 
 [English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
-## Vorschau
+## Was automatisch passiert
 
-Die Bilder stammen aus einer isolierten Home-Assistant-Testinstallation mit erfundenen Einträgen. Die Integration startet ohne Gerätedaten.
+| Ablauf | Auslöser | Ergebnis |
+| --- | --- | --- |
+| **Wartungstermine berechnen** | Eine gespeicherte Regel und das aktuelle Datum | Fällige, überfällige und kommende Aufgaben werden einsortiert. Nach einer Erledigung werden Intervall, Saisonzyklus oder nächster Rotationsschritt berücksichtigt. |
+| **Sensorabhängig erinnern** | Ein zugeordneter numerischer Sensor meldet einen Wert unter der eingestellten Schwelle | Die Wartungsaufgabe wird fällig. Unbekannte oder ungültige Werte werden als ausstehend behandelt. |
+| **Batteriewechsel anzeigen** | Ein gültiger Batteriestand unterschreitet den gemeinsamen Home-Assistant-Schwellenwert | In der geöffneten Aufgabenansicht erscheint eine Batterieaufgabe mit Anzahl und Typ, sofern diese erfasst sind. Batteriestand und Warnschwelle sind nachvollziehbar sichtbar. |
+| **Materialverbrauch buchen** | Du erledigst eine verknüpfte Aufgabe und bestätigst den Bestandsabzug | Die vorgesehene Menge wird abgezogen und mit Material und Menge in der Historie dokumentiert. Der Dialog zeigt vorab den Bestand vorher und nachher. Bei Batterien stammt die Menge aus der Geräteakte. |
+| **Nachkaufaufträge erstellen** | Nach einer Bestandsänderung liegt ein Artikel auf oder unter seiner individuellen Nachkaufgrenze | Unter **Aufgaben → Nachkaufen** erscheint der passende Artikel. Nach einem eingetragenen Einkauf steigt sein Bestand; reicht er wieder über die Grenze, ist der automatische Nachkauf erledigt. |
+| **Geräteinformationen übernehmen** | Du bestätigst eine Sammelerfassung ausgewählter HA-Gerätetypen | Bezeichnung, Hersteller, Modell und HA-Verknüpfung werden übernommen; der Gerätetyp bestimmt eine passende Kategorie. Bestehende Zuordnungen und mögliche Dubletten werden erkannt. Bereiche folgen der HA-Gerätezuordnung. |
+| **Kaufdatum ergänzen** | Ein Kauf- oder Bestellereignis mit genauem Datum wird in der Historie erfasst | Ein noch leeres Kaufdatum der Geräteakte wird ergänzt. Ein vorhandenes Kaufdatum bleibt erhalten. |
+| **Wochenmeldung zusammenstellen** | Der eingestellte Wochentag und die Uhrzeit sind erreicht | Eine optionale Home-Assistant-Mitteilung fasst offene Wartungen und Nachkäufe zusammen. Dafür muss das Dashboard nicht geöffnet sein. |
 
-![Geräteübersicht auf dem Desktop](docs/images/devices-desktop.jpg)
+Die tatsächliche Erledigung, verbrauchte Mengen und Einkäufe werden von dir bestätigt. Ein Nachkaufauftrag ist eine Einkaufserinnerung; er bestellt keine Ware. Prozentbasierte Batteriewarnungen werden im geöffneten Dashboard berechnet. Gespeicherte Wartungsregeln und Bestandsbuchungen verarbeitet die Integration in Home Assistant.
 
-<img src="docs/images/consumables-mobile.jpg" alt="Kompakte Verbrauchsmaterialansicht auf dem Smartphone" width="320">
+## Screenshots
 
-## Funktionen
+Die drei Übersichtsbilder zeigen eine eingerichtete Installation. Geräteakte, Erledigungsdialog und Smartphone-Aufnahme stammen aus einer separaten Testinstanz mit erfundenen Daten. Eine neue Installation startet ohne Geräte oder Beispielaufgaben.
 
-- Geräte manuell erfassen oder mit Home-Assistant-Geräten verknüpfen; Sammelerfassung mit Vorschau und Duplikatprüfung.
-- Einmalige Termine, Intervalle, Saisonaufgaben, Rotationen und Aufgaben nach Sensorwert oder Geräteanzeige.
-- Erledigungen mit Datum, Kosten und Notizen dokumentieren; Historie bearbeiten und Bestandsabzüge bestätigen.
-- Batterien und weiteres Verbrauchsmaterial mit Mengen, Nachkaufgrenzen, Notizen und Gerätezuordnung verwalten.
-- Niedrige Batteriestände in der Aufgabenansicht anzeigen und Einkäufe vormerken.
-- Aktive Geräte, Lager, Archiv und Papierkorb; Kategorien und Ereignisarten bearbeiten.
-- JSON-Export und bestätigter Import sowie eine optionale Wochenmeldung innerhalb Home Assistant.
+**Aufgaben:** Fällige Arbeiten, Batterieanzahl und -typ sowie Nachkaufbedarf in einer Ansicht.
 
-Auf Smartphones sind die Reiter als Symbole dargestellt. Verbrauchsmaterial-Kacheln zeigen die antippbare Bestandszahl und eine kompakte Aktionszeile.
+![Aufgaben mit Wartungsterminen, Batterieangaben und Nachkäufen](docs/images/tasks-desktop.jpg)
+
+<details>
+<summary>Geräteübersicht mit Kategorien, Verbrauchsmaterial und Batterieangaben</summary>
+
+![Geräteübersicht mit Kategorien und Materialzuordnungen](docs/images/devices-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Verbrauchsmaterial mit Batterien, eigenen Artikeln, Beständen und Nachkaufgrenzen</summary>
+
+![Batterien und weiteres Verbrauchsmaterial mit Beständen, Notizen und Aktionen](docs/images/consumables-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Geräteakte mit Wartung und Historie – Beispiel mit Demodaten</summary>
+
+Die vergangene Filterwartung enthält den gebuchten Materialverbrauch. Aus ihrem Erledigungsdatum wird der nächste Intervalltermin berechnet. Das Kaufereignis ergänzt das Kaufdatum der Akte.
+
+![Geräteakte mit nächster Filterwartung, Kaufdatum und Historie](docs/images/device-detail-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Erledigung mit Bestandsvorschau – Beispiel mit Demodaten</summary>
+
+Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar. Der Abzug kann abgewählt werden. Ein negativer Bestand kennzeichnet eine fehlende Menge.
+
+<img src="docs/images/completion-dialog.jpg" alt="Erledigungsdialog mit Datum und bestätigbarem Materialabzug" width="640">
+
+</details>
+
+<details>
+<summary>Verbrauchsmaterial auf dem Smartphone – Beispiel mit Demodaten</summary>
+
+<img src="docs/images/consumables-mobile.jpg" alt="Smartphone-Ansicht mit antippbaren Bestandszahlen, Notizen und kompakten Aktionen" width="320">
+
+</details>
+
+## Funktionen im Detail
+
+### Geräte und Home Assistant
+
+- Manuelle Geräteakten und direkt mit Home Assistant verknüpfte Geräte gemeinsam verwalten: Hersteller, Modell, Kaufdatum, Seriennummer, Batterieangaben und Notizen. Kosten lassen sich bei Historienereignissen erfassen.
+- HA-Geräte gesammelt übernehmen: nach Gerätetyp und Text suchen, pro Typ bereits erfasste Geräte, neue Kandidaten und Konflikte sehen und die Auswahl vor der Übernahme prüfen. Die Sammelerfassung ist wiederholbar und berücksichtigt auch Lager, Archiv und Papierkorb beim Duplikatschutz.
+- Geräte miteinander verknüpfen und die Verknüpfung von beiden Seiten bearbeiten; Gerät und zugehörige Komponenten über anklickbare Tags öffnen.
+- Nach Kategorie, HA-Bereich und Text filtern. Die Suche findet Namen auch ohne Akzente oder Umlaute.
+- Zwischen **Aktiv**, **Lager**, **Archiv** und **Papierkorb** wechseln. Lager und Archiv behalten ihre Akten und Historie, ohne Aufgaben in der aktiven Liste anzuzeigen. Geräte aus dem Papierkorb lassen sich wiederherstellen oder endgültig entfernen.
+- Auf Gerätekacheln Aufgabenanzahl, zugehöriges Verbrauchsmaterial sowie Batteriestand und Warnschwelle sehen.
+
+### Wartung nach Datum, Zyklus oder Sensor
+
+| Fälligkeitsregel | Verwendung |
+| --- | --- |
+| **Termin** | Einmalige Aufgabe an einem Datum. Nach der Erledigung bleibt der Eintrag in der Historie und verschwindet aus den offenen Aufgaben. |
+| **Intervall / Einplanen** | Wiederholung in Monaten und zusätzlichen Tagen ab der tatsächlichen letzten Erledigung. Ein erster Termin oder Planmonat ist möglich; ein noch unbekanntes Intervall bleibt zum Einplanen offen. |
+| **Saison** | Jährlich zu einem Kalenderdatum, optional auf einen bestimmten Wochentag in dessen Nähe gelegt. Unerledigte Jahreszyklen bleiben sichtbar. |
+| **Rotation** | Mehrere Arbeitsschritte abwechselnd in einem festen Monatsabstand ausführen. Nach der Erledigung folgt der nächste Schritt; nach dem letzten beginnt die Folge von vorne. |
+| **Messwert** | Fällig, sobald ein numerischer HA-Sensor die eingestellte Schwelle unterschreitet. Das Formular zeigt den aktuellen Sensorwert und die Einheit. |
+| **Nach Geräteanzeige** | Bei Bedarf gemäss Anzeige am Gerät erledigen. Aus mehreren Erledigungen wird ein unverbindlicher typischer Abstand ermittelt. |
+| **Ohne Fälligkeit** | Eine Arbeit ohne festen Termin vorhalten und bei Bedarf dokumentieren. |
+
+- Aufgaben sind nach **Jetzt erledigen**, **Termin vereinbart**, **Bald fällig**, **Geplant**, **Nach Geräteanzeige** und **Nachkaufen** geordnet, soweit sie zur aktuellen Auswahl passen.
+- **Jetzt** ist die Standardauswahl. **Bald** umfasst morgen bis einschliesslich in 14 Tagen, **Alle** zeigt alle offenen Aufgaben. Die Suche berücksichtigt Gerät und Aufgabentext.
+- Ein gebuchter Ausführungstermin lässt sich zusätzlich zur eigentlichen Fälligkeit erfassen.
+- Sensor und Verbrauchsmaterial über Suchfelder auswählen; bei Rotationen kann jeder Arbeitsschritt ein anderes Material verwenden.
+- Wiederkehrende, aktuell erledigte Aufgaben bleiben in der Geräteakte mit ihrem nächsten Termin zugänglich.
+
+### Verbrauchsmaterial und Nachkaufen
+
+- Batterietypen, Filter, Salz, Reinigungs- und Entkalkungsmittel oder andere eigene Artikel verwalten – jeweils mit Bestand, Nachkaufgrenze, Notizen und Gerätezuordnung.
+- Bei Batterien Typ und Anzahl pro Gerät getrennt erfassen. Geräte erscheinen anhand ihres Batterietyps automatisch in der Verwendungsliste; zusätzliche manuelle Zuordnungen sind möglich. **Geräte anzeigen** nennt die benötigte Batterieanzahl je Gerät. Fest verbaute Akkus werden nicht als Wechselbatterievorrat geführt.
+- Neue Batterietypen starten mit Bestand 1. Weitere Materialien unterstützen eigene Einheiten, Dezimalmengen und einen zunächst unbekannten Bestand; negative Bestände zeigen fehlende Mengen an.
+- Bestand direkt über die grosse Zahl bearbeiten. **Nachkaufen** erfasst auch unabhängig von der Grenze einen manuellen Nachkaufauftrag mit gewünschter Menge.
+- Aufgaben mit Material verknüpfen. Die Erledigung zeigt die Verbrauchsmenge und den resultierenden Bestand vor dem bestätigten Abzug. Eine Geräte-Material-Verknüpfung dient der Zuordnung; für den Verbrauch wird das Material zusätzlich mit der Aufgabe verknüpft.
+- **Eingekauft** fragt die tatsächlich gekaufte Menge ab und addiert sie zum Bestand. Automatische Nachkäufe bleiben bei weiterhin zu niedrigem Bestand offen. Artikelnotizen sind auch beim Nachkauf sichtbar und bearbeitbar.
+
+### Historie, Korrekturen und Rückgängig
+
+- Eine Erledigung erzeugt einen Historieneintrag mit dem ursprünglichen Aufgabentext und dem gewählten Datum. Datum per **Heute**, Tageswechsel oder Kalender wählen; Kosten und Notizen ergänzen.
+- Wartung, Reparatur, Prüfung, Kauf und eigene Ereignisarten nachtragen. In der Geräteakte steht die vollständige Historie. **Log** bündelt die Wartungs- und weiteren Serviceereignisse mit Datum, Erfassungszeit, Textsuche und Gerätelink; Kauf- und reine Notizeinträge stehen in der Geräteakte.
+- Historieneinträge bearbeiten oder entfernen. Verknüpfte Wartungsdaten werden nachgeführt; beim Entfernen eines gebuchten Verbrauchs wird die protokollierte Menge dem aktuellen Bestand wieder gutgeschrieben.
+- Eine gerade gespeicherte Erledigung für 30 Sekunden mit **Rückgängig** zurücknehmen. Dabei werden auch zugehöriger Materialverbrauch und Aufgabenzustand zurückgesetzt. Zwischenzeitliche Änderungen werden geschützt.
+
+### Einstellungen und Datenqualität
+
+- Kategorien und Ereignisarten hinzufügen, umbenennen, entfernen und per Drag-and-drop sortieren; die jeweilige Anzahl zugehöriger Einträge sehen.
+- Batterieschwelle per Schieberegler direkt mit einem Home-Assistant-Helfer synchronisieren. Den Standardhelfer prüft und erstellt das geöffnete Dashboard bei Bedarf selbst; alternativ kann ein vorhandener Helfer gewählt werden.
+- Währung sowie Tag und Uhrzeit der Wochenmeldung einstellen; eine Testmeldung auslösen.
+- **Datenprüfung** aufrufen: fehlende HA-Geräte und Sensoren, unvollständige Batterieangaben, ungültige Materialzuordnungen, verwaiste Verknüpfungen und mögliche Dubletten mit Links zu den betroffenen Akten prüfen. Die Prüfung verändert keine Daten.
+- Verzeichnis inklusive Einstellungen als JSON exportieren und nach ausdrücklicher Bestätigung wiederherstellen. **Daten zurücksetzen** entfernt Gerätedaten, Aufgaben und Vorräte; Kategorien, Ereignisarten und allgemeine Einstellungen bleiben erhalten.
+
+Auf Desktop und Smartphone bleiben dieselben Funktionen verfügbar. Auf dem Smartphone verwenden die Reiter Symbole und Verbrauchsmaterial-Kacheln eine kompakte Aktionszeile. Die geöffnete Oberfläche aktualisiert Daten regelmässig und übernimmt Batteriewerte aus Home Assistant; offene Formulare werden dabei geschützt.
 
 ## Voraussetzungen
 

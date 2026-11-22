@@ -26,9 +26,21 @@ Das Testskript erstellt eine isolierte temporäre Konfiguration, bindet den Zugr
 
 Behalte die Domäne `ha_wartung` und die Kompatibilität mit gespeicherten Daten bei. Neue Einstellungen benötigen Standardwerte, die bestehende Installationen erhalten. Ändere Geräte-, Entitäts- oder Helferkennungen nicht automatisch.
 
+## Demo für Screenshots
+
+Eine getrennte Testinstallation mit erfundenen Geräten, Wartungen, Batteriewarnung und automatischen Nachkäufen lässt sich so vorbereiten:
+
+```sh
+python3 scripts/test_ha_lifecycle.py --version 2026.11.2 --keep
+# Den vom Test ausgegebenen Containernamen einsetzen:
+docker exec CONTAINER python /qa/seed_demo.py
+```
+
+`seed_demo.py` ersetzt ausschliesslich die künstlichen Daten einer erkannten Release-Testinstallation. Es hat keine Server-URL-Option und nimmt keine Produktionszugangsdaten entgegen. Die erzeugten Batterie-Sensorzustände dienen nur der Demonstration und verschwinden beim Neustart. Testcontainer nach den Aufnahmen wieder entfernen. Die drei bereitgestellten Übersichtsbilder in der README zeigen eine eingerichtete Installation; die ergänzenden Detail- und Smartphone-Aufnahmen stammen aus dieser Demo.
+
 ## Testdaten und Meldungen
 
-Verwende erfundene Namen, Beispielkennungen und reservierte Beispiel-URLs. Nimm keine echten Exporte, `.storage`-Dateien, Zugriffstoken, Gerätefotos oder Bildschirmfotos aus einem Haushalt ins Repository auf. Tests sollen das Verhalten prüfen und nicht lediglich die Implementierung nachbilden.
+Verwende erfundene Namen, Beispielkennungen und reservierte Beispiel-URLs. Nimm keine echten Exporte, `.storage`-Dateien, Zugriffstoken oder Gerätefotos ins Repository auf. Dokumentations-Screenshots stammen aus der Demo oder wurden ausdrücklich für die öffentliche Dokumentation bereitgestellt; die Herkunft wird in der README kenntlich gemacht. Tests sollen das Verhalten prüfen und nicht lediglich die Implementierung nachbilden.
 
 Prüfe bei Änderungen am Dashboard sowohl eine schmale Smartphone-Ansicht als auch eine Desktop-Ansicht. Bedienelemente müssen mit Tastatur und Touch funktionieren; endgültige Änderungen benötigen eine klare Bestätigung.
 
