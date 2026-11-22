@@ -36,7 +36,7 @@ python3 scripts/test_ha_lifecycle.py --version 2026.11.2 --keep
 docker exec CONTAINER python /qa/seed_demo.py
 ```
 
-`seed_demo.py` ersetzt ausschliesslich die künstlichen Daten einer erkannten Release-Testinstallation. Es hat keine Server-URL-Option und nimmt keine Produktionszugangsdaten entgegen. Die erzeugten Batterie-Sensorzustände dienen nur der Demonstration und verschwinden beim Neustart. Testcontainer nach den Aufnahmen wieder entfernen. Die drei bereitgestellten Screenshots in der README zeigen eine eingerichtete Installation; die ergänzenden Detail- und Smartphone-Aufnahmen stammen aus dieser Demo.
+`seed_demo.py` ersetzt ausschliesslich die künstlichen Daten einer erkannten Release-Testinstallation. Es hat keine Server-URL-Option und nimmt keine Produktionszugangsdaten entgegen. Die erzeugten Batterie-Sensorzustände dienen nur der Demonstration und verschwinden beim Neustart. Testcontainer nach den Aufnahmen wieder entfernen. Die vier bereitgestellten Screenshots in der README zeigen eine eingerichtete Installation; die ergänzenden Dialog- und Smartphone-Aufnahmen stammen aus dieser Demo.
 
 ## Testdaten und Meldungen
 

@@ -25,7 +25,7 @@ Completions, consumption and purchases need your confirmation. Purchase reminder
 
 ## Screenshots
 
-The first three screenshots show a configured installation. Additional images labelled as fictional examples use an isolated test installation. New installations start empty.
+The first four screenshots show a configured installation. Additional images labelled as fictional examples use an isolated test installation. New installations start empty.
 
 ![Tasks with due dates, battery quantities and purchase reminders](docs/images/tasks-desktop.jpg)
 
@@ -44,9 +44,14 @@ The first three screenshots show a configured installation. Additional images la
 </details>
 
 <details>
-<summary>Device record and completion dialog — fictional examples</summary>
+<summary>Log with device links, maintenance events and recorded consumption</summary>
 
-![Device record showing purchase date, recurring work and recorded material consumption](docs/images/device-detail-desktop.jpg)
+![Log with linked devices, maintenance events, dates, recording times and material consumption](docs/images/log-desktop.jpg)
+
+</details>
+
+<details>
+<summary>Completion dialog — fictional example</summary>
 
 <img src="docs/images/completion-dialog.jpg" alt="Completion dialog with date, material quantity and stock preview" width="640">
 

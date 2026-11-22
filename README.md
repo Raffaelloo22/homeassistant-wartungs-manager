@@ -25,7 +25,7 @@ Die tatsächliche Erledigung, verbrauchte Mengen und Einkäufe werden von dir be
 
 ## Screenshots
 
-Die ersten drei Screenshots zeigen eine eingerichtete Installation. Die zusätzlich als Demobilder gekennzeichneten Aufnahmen stammen aus einer separaten Testinstanz mit erfundenen Daten. Eine neue Installation startet ohne Geräte oder Beispielaufgaben.
+Die ersten vier Screenshots zeigen eine eingerichtete Installation. Die zusätzlich als Demobilder gekennzeichneten Aufnahmen stammen aus einer separaten Testinstanz mit erfundenen Daten. Eine neue Installation startet ohne Geräte oder Beispielaufgaben.
 
 **Aufgaben:** Fällige Arbeiten, Batterieanzahl und -typ sowie Nachkaufbedarf in einer Ansicht.
 
@@ -46,11 +46,11 @@ Die ersten drei Screenshots zeigen eine eingerichtete Installation. Die zusätzl
 </details>
 
 <details>
-<summary>Geräteakte mit Wartung und Historie – Beispiel mit Demodaten</summary>
+<summary>Log mit erledigten Aufgaben, Datum, Erfassungszeit und Verbrauch</summary>
 
-Die vergangene Filterwartung enthält den gebuchten Materialverbrauch. Aus ihrem Erledigungsdatum wird der nächste Intervalltermin berechnet. Das Kaufereignis ergänzt das Kaufdatum der Akte.
+Das Log bündelt die Wartungs- und Serviceereignisse mit Gerätelinks und Textsuche. Bei gebuchtem Materialverbrauch werden Artikel und Menge angezeigt.
 
-![Geräteakte mit nächster Filterwartung, Kaufdatum und Historie](docs/images/device-detail-desktop.jpg)
+![Log mit Geräteverknüpfungen, Wartungseinträgen, Datum, Uhrzeit und Materialverbrauch](docs/images/log-desktop.jpg)
 
 </details>
 
