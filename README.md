@@ -6,7 +6,9 @@ Automatisierte Wartungsplanung und Vorratsverwaltung für Home Assistant – mit
 
 Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligkeiten, zeigt Batteriewarnungen an und erstellt Nachkaufaufträge bei niedrigen Beständen. Bestätigte Erledigungen schreiben die Historie und die nächste Wartung fort; verknüpftes Verbrauchsmaterial wird nach deiner Bestätigung vom Bestand abgezogen.
 
-[English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) · [☕ Unterstützen](https://buymeacoffee.com/raffaelloo)
+[English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
+
+<a href="https://buymeacoffee.com/raffaelloo"><img src="docs/assets/buy-me-a-coffee.webp" alt="Wartungs-Manager auf Buy Me a Coffee unterstützen" width="218"></a>
 
 ## Was automatisch passiert
 
@@ -207,7 +209,7 @@ Fehler und Wünsche über [Issues](https://github.com/Raffaelloo22/homeassistant
 
 Wenn dir der Wartungs-Manager hilft, kannst du die Weiterentwicklung mit einem Kaffee unterstützen:
 
-[☕ Buy me a coffee](https://buymeacoffee.com/raffaelloo)
+<a href="https://buymeacoffee.com/raffaelloo"><img src="docs/assets/buy-me-a-coffee.webp" alt="Wartungs-Manager auf Buy Me a Coffee unterstützen" width="218"></a>
 
 ## Lizenz
 
