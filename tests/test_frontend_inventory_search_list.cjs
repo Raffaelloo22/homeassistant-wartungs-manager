@@ -14,7 +14,8 @@ function inventory(){
    salt:{id:'salt',name:'Entkalkersalz',unit:'kg',quantity:-1.5,threshold:0.5,notes:'Sack im Keller',device_ids:[]}
   }
  });
- return f;
+ const toolbar=[];p.syncInventoryToolbar=(count,list)=>toolbar.push({count,list});
+ return {...f,toolbar};
 }
 function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(item)).map(item=>item.id));}
 (async()=>{
@@ -22,10 +23,22 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   const {p}=inventory(),nodes=new Map(),root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(){}};
   for(const selector of ['#search','#clearsearch','#categoryfilter','#area','#taskperiod'])nodes.set(selector,{value:'',hidden:false,focus(){this.focused=true;}});
   p.shadowRoot=root;let bodies=0;p.body=()=>bodies++;p.renderCompletionUndo=()=>{};
-  p.draw();assert(root.innerHTML.includes('<div class="toolbar" >'),'inventory search is visible');
+  p.draw();assert(root.innerHTML.includes('<div class="toolbar inventory-toolbar" >'),'inventory search, count and layout share one toolbar');
   assert(root.innerHTML.includes('placeholder="Verbrauchsmaterial suchen"'));assert(root.innerHTML.includes('aria-label="Suchbegriff löschen"'));
+  assert(root.innerHTML.indexOf('class="searchbox"')<root.innerHTML.indexOf('id="inventory-count"')&&root.innerHTML.indexOf('id="inventory-count"')<root.innerHTML.indexOf('id="inventory-layout"'),'search, count and layout switch appear in that order in the common toolbar');
+  assert(root.innerHTML.includes('data-action="inventorylayout" data-id="cards"'));assert(root.innerHTML.includes('data-action="inventorylayout" data-id="list"'));
   const input=nodes.get('#search');input.oninput({target:{value:'zoe'}});assert.equal(p.inventoryQuery,'zoe');assert.equal(bodies,2,'typing filters immediately through the existing body renderer');
   await p.act('clearsearch');assert.equal(p.inventoryQuery,'');assert.equal(input.value,'');assert(input.focused);assert(nodes.get('#clearsearch').hidden);
+ }
+ {
+  const {p}=inventory(),counter={textContent:'4 Artikel'},attributes=[{},{}],cards={setAttribute:(key,value)=>attributes[0][key]=value},list={setAttribute:(key,value)=>attributes[1][key]=value};
+  const nodes=new Map([['#inventory-count',counter],['#inventory-layout [data-id="cards"]',cards],['#inventory-layout [data-id="list"]',list]]);
+  p.shadowRoot={innerHTML:'Existing toolbar with current search focus',querySelector:selector=>nodes.get(selector)||null};
+  const sync=Object.getPrototypeOf(p).syncInventoryToolbar;
+  sync.call(p,'1 von 4 Artikeln',true);assert.equal(counter.textContent,'1 von 4 Artikeln');assert.deepEqual(attributes,[{'aria-pressed':'false'},{'aria-pressed':'true'}]);
+  sync.call(p,'4 Artikel',false);assert.equal(counter.textContent,'4 Artikel');assert.deepEqual(attributes,[{'aria-pressed':'true'},{'aria-pressed':'false'}]);
+  assert.equal(p.shadowRoot.innerHTML,'Existing toolbar with current search focus','updating count and layout state does not rebuild the search toolbar');
+  p.shadowRoot.querySelector=()=>null;assert.doesNotThrow(()=>sync.call(p,'0 Artikel',true),'other views do not require inventory controls');
  }
  {
   const {p}=inventory(),before=plain(p.data);
@@ -40,14 +53,15 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   assert.deepEqual(plain(p.data),before,'searching must not mutate any records or stock');
  }
  {
-  const {p,body}=inventory(),before=plain(p.data);
-  p.body();assert(body.innerHTML.includes('4 Artikel'));assert(body.innerHTML.includes('device-grid'));assert(body.innerHTML.includes('data-id="cards" aria-pressed="true"'));
-  p.filterChanged('inventoryQuery','wasser');assert(body.innerHTML.includes('1 von 4 Artikeln'));assert(body.innerHTML.includes('Wasserfilter'));assert(!body.innerHTML.includes('Entkalkersalz'));
+  const {p,body,toolbar}=inventory(),before=plain(p.data);
+  p.body();assert.deepEqual(toolbar.at(-1),{count:'4 Artikel',list:false});assert(body.innerHTML.includes('device-grid'));assert(!body.innerHTML.includes('inventory-view-switch'),'the layout toolbar is not duplicated in the body');
+  p.filterChanged('inventoryQuery','wasser');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert(body.innerHTML.includes('Wasserfilter'));assert(!body.innerHTML.includes('Entkalkersalz'));
   await p.act('inventorylayout','list');assert.equal(p.inventoryLayout,'list');assert.equal(p.inventoryQuery,'wasser');
   assert(body.innerHTML.includes('class="inventory-list" role="list"'));assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,1);
-  assert(body.innerHTML.includes('data-id="list" aria-pressed="true"'));
-  assert(body.innerHTML.includes('Bestand unbekannt Stück ändern'));assert(body.innerHTML.includes('Nachkaufen ab'));assert(body.innerHTML.includes('Für die Küche'));
-  p.filterChanged('inventoryQuery','nichts');assert(body.innerHTML.includes('0 von 4 Artikeln'));assert(body.innerHTML.includes('Keine passenden Artikel'));assert(!body.innerHTML.includes('role="listitem"'));
+  assert.equal(toolbar.at(-1).list,true);
+  assert(body.innerHTML.includes('?')&&body.innerHTML.includes('Stück'),'unknown stock remains visible as text');
+  assert(!body.innerHTML.includes('Bestand unbekannt Stück ändern'));assert(!body.innerHTML.includes('Nachkaufen ab'));assert(!body.innerHTML.includes('Für die Küche'),'notes remain searchable without expanding the compact stock list');
+  p.filterChanged('inventoryQuery','nichts');assert.equal(toolbar.at(-1).count,'0 von 4 Artikeln');assert(body.innerHTML.includes('Keine passenden Artikel'));assert(!body.innerHTML.includes('role="listitem"'));
   const input={value:'nichts',focus(){this.focused=true;}},clear={hidden:false};
   const old=p.shadowRoot.querySelector;p.shadowRoot.querySelector=selector=>selector==='#search'?input:selector==='#clearsearch'?clear:old(selector);
   await p.act('clearsearch');assert.equal(p.inventoryQuery,'');assert.equal(input.value,'');assert(input.focused);assert(clear.hidden);
@@ -56,15 +70,32 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   assert.deepEqual(plain(p.data),before,'layout switches and clear search must never write inventory data');
  }
  {
-  const {p,body}=inventory();p.inventoryLayout='list';p.body();
-  for(const [action,id] of [['batterystock','AA'],['editbatterytype','AA'],['requestpurchase','battery:AA'],['materialstock','salt'],['material','salt'],['requestpurchase','material:salt']]){
-   assert(body.innerHTML.includes('data-action="'+action+'" data-id="'+id+'"'),action+' remains available in list layout');
+  const {p,body}=inventory();p.inventoryLayout='list';
+  p.data.devices.linked.name='Mara <Türsensor> & Licht';
+  p.data.settings.battery_device_links.AA=['linked','d','linked','missing'];
+  const before=plain(p.data);p.body();
+  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),[],'the list body has no article, add or duplicate layout buttons');
+  assert(body.innerHTML.includes('class="inventory-list" role="list"'));assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,4);
+  for(const item of p.inventoryItems()){
+   const html=p.inventoryListRow(item);
+   assert(html.indexOf('inventory-list-stock')<html.indexOf('inventory-list-name')&&html.indexOf('inventory-list-name')<html.indexOf('inventory-list-devices'),'each compact row reads quantity, article, devices');
+   assert(!/<(?:button|a|details)\b/.test(html));assert(!html.includes('data-action='),'list rows are plain text without hidden mobile actions');
+   for(const absent of ['Nachkaufen','Bearbeiten','Entfernen','inventory-list-threshold','inventory-usage','inventory-notes','shop-link'])assert(!html.includes(absent),absent+' is reserved for cards and editing');
   }
-  assert(!body.innerHTML.includes('data-action="deletebatterytype"'));assert(!body.innerHTML.includes('data-action="deletematerial"'),'removal is reserved for the edit dialog in both responsive layouts');
-  assert(body.innerHTML.includes('inventory-list-stock'));assert(body.innerHTML.includes('-1.5'));assert(body.innerHTML.includes('kg'));assert(body.innerHTML.includes('0.5'));
-  assert(body.innerHTML.includes('data-preserve-key="battery-usage:AA"'));assert(body.innerHTML.includes('data-preserve-key="material-usage:filter"'));
-  assert(body.innerHTML.includes('Zoé Küchensensor · 2 Batterien'));assert(body.innerHTML.includes('inventory-menu'),'list uses the existing native overflow menu');
+  const rows=p.inventoryItems(),battery=p.inventoryListRow(rows.find(item=>item.id==='AA')),material=p.inventoryListRow(rows.find(item=>item.id==='salt')),unknown=p.inventoryListRow(rows.find(item=>item.id==='filter'));
+  assert(battery.includes('3')&&battery.includes('Stück')&&battery.includes('AA Batterie'));
+  assert(battery.includes('Zoé Küchensensor')&&battery.includes('Mara &lt;Türsensor&gt; &amp; Licht'),'all associated device names remain visible and escaped');
+  assert(battery.includes(', '),'associated devices are separated on the same line');
+  assert.equal((battery.match(/Zoé Küchensensor/g)||[]).length,1,'duplicate automatic/manual device assignments appear only once');
+  assert(material.includes('-1.5')&&material.includes('kg')&&material.includes('Entkalkersalz')&&material.includes('—'),'negative quantities and articles without devices stay clear');
+  assert(unknown.includes('?')&&unknown.includes('Stück')&&unknown.includes('Wasserfilter'),'unknown quantity is not silently changed to zero');
+  assert(!body.innerHTML.includes('Trocken &amp; kühl lagern'));assert(!body.innerHTML.includes('Sack im Keller'));assert(!body.innerHTML.includes('example.invalid'));
+  assert.deepEqual(plain(p.data),before,'the compact list does not change stored materials, notes, links or quantities');
+  p.data.devices.unclear={id:'unclear',name:'Sensor ohne Batterietyp',battery_type:'unbekannt'};p.body();
+  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),[],'unresolved battery assignments do not reintroduce device buttons into the stock list');
+  await p.act('inventorylayout','cards');assert(body.innerHTML.includes('Batterietyp noch offen'));assert(body.innerHTML.includes('data-action="record" data-id="unclear"'),'unresolved assignments remain manageable in cards');
  }
+
  {
   const {p}=inventory();
   for(const url of ['https://example.invalid/path?x=1&y=2','http://example.invalid:8080/products','https://münchen.example/path','http://127.0.0.1:8123/products','https://[::1]:8123/']){

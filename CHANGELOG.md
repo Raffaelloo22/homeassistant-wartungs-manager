@@ -2,7 +2,9 @@
 
 ## 1.2.1
 
-- „Entfernen“ für Batterietypen und weiteres Verbrauchsmaterial in das jeweilige Bearbeitungsfenster verschoben. Kacheln, Listen und mobile Aktionsmenüs zeigen nur noch die übrigen Aktionen; die bestehende Sicherheitsabfrage bleibt erhalten.
+- Kompakte Liste als reine Lagerliste mit Menge, Bezeichnung und zugeordneten Geräten, ohne Aktionsknöpfe und Nachkaufgrenzen. Suche, Artikelanzahl und Darstellungsumschalter stehen in einer gemeinsamen Zeile.
+
+- „Entfernen“ für Batterietypen und weiteres Verbrauchsmaterial in das jeweilige Bearbeitungsfenster verschoben. Kacheln und mobile Aktionsmenüs zeigen nur noch die übrigen Aktionen; die bestehende Sicherheitsabfrage bleibt erhalten.
 
 ## 1.2.0
 
