@@ -76,13 +76,14 @@ async def main():
                                'unit_of_measurement': '%', 'device_class': 'battery'}})
         await api.mutate('battery_inventory', stocks={'CR2032': 0, 'AA': 8, 'AAA': 1, '9V': 2},
                          thresholds={'CR2032': 1, 'AA': 4, 'AAA': 2, '9V': 1},
+                         shop_urls={'CR2032': 'https://example.com/shop/cr2032', 'AA': 'https://example.com/shop/aa'},
                          notes={'CR2032': 'Für den Fenstersensor. Beim Einkauf auf die Bauform achten.',
                                 'AA': 'Für Türschloss und Temperatursensor; sechs Stück im Einsatz.',
                                 'AAA': 'Reserve für weitere kleine Geräte.', '9V': 'Reserve für den Rauchmelder.'})
         for material in [
-            {'id': 'demo-filter', 'name': 'Wasserfilter', 'unit': 'Stück', 'quantity': 1, 'threshold': 1,
+            {'id': 'demo-filter', 'name': 'Wasserfilter', 'unit': 'Stück', 'quantity': 1, 'threshold': 1, 'shop_url': 'https://example.com/shop/filter',
              'notes': 'Passend zur Demo-Kaffeemaschine. Ein Filter pro Wechsel.', 'device_ids': ['demo-kaffee']},
-            {'id': 'demo-salz', 'name': 'Regeneriersalz', 'unit': 'kg', 'quantity': 4.5, 'threshold': 5,
+            {'id': 'demo-salz', 'name': 'Regeneriersalz', 'unit': 'kg', 'quantity': 4.5, 'threshold': 5, 'shop_url': 'https://example.com/shop/salt',
              'notes': 'Tablettensalz trocken lagern. Nachkauf in 10-kg-Säcken.', 'device_ids': ['demo-wasser']},
             {'id': 'demo-reiniger', 'name': 'Maschinenreiniger', 'unit': 'Flasche', 'quantity': 3, 'threshold': 1,
              'notes': 'Eine Flasche pro Intensivreinigung. Packungsanleitung beachten.', 'device_ids': ['demo-spueler']},

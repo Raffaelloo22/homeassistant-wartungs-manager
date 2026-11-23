@@ -103,6 +103,9 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 
 ### Verbrauchsmaterial und Nachkaufen
 
+- Mit der sofortigen Textsuche Batterien und weitere Materialien nach Bezeichnung, Notizen, Einheit, Shop-Adresse oder zugeordnetem Gerät finden. Akzente und Umlaute werden wie in den anderen Suchfeldern berücksichtigt; **×** leert die Suche.
+- Zwischen **Kacheln** und einer kompakten **Liste** mit Bestand, Einheit, Nachkaufgrenze und Aktionen wechseln. Die Suche gilt für beide Darstellungen.
+- Pro Batterietyp oder Material einen optionalen **Shop-Link** hinterlegen. **Shop** öffnet die hinterlegte Adresse in einem neuen Tab – direkt beim Artikel oder beim zugehörigen Nachkaufauftrag.
 - Batterietypen, Filter, Salz, Reinigungs- und Entkalkungsmittel oder andere eigene Artikel verwalten – jeweils mit Bestand, Nachkaufgrenze, Notizen und Gerätezuordnung.
 - Bei Batterien Typ und Anzahl pro Gerät getrennt erfassen. Geräte erscheinen anhand ihres Batterietyps automatisch in der Verwendungsliste; zusätzliche manuelle Zuordnungen sind möglich. **Geräte anzeigen** nennt die benötigte Batterieanzahl je Gerät. Fest verbaute Akkus werden nicht als Wechselbatterievorrat geführt.
 - Neue Batterietypen starten mit Bestand 1. Weitere Materialien unterstützen eigene Einheiten, Dezimalmengen und einen zunächst unbekannten Bestand; negative Bestände zeigen fehlende Mengen an.

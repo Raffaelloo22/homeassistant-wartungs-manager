@@ -17,6 +17,8 @@ BASE = "http://127.0.0.1:8123"
 CLIENT = "http://127.0.0.1:18767/"
 STATE = Path("/config/release-test-state.json")
 DOMAIN = "ha_wartung"
+BATTERY_SHOP_URL = "https://example.com/shop/aa"
+MATERIAL_SHOP_URL = "https://example.com/shop/filter"
 
 
 def check(value, message):
@@ -83,6 +85,18 @@ async def wait_ready(api, path="/api/onboarding"):
     raise AssertionError("Disposable Home Assistant did not become ready in 180 seconds")
 
 
+async def wait_running(api):
+    """HTTP readiness precedes Core's signal handlers and final-write lifecycle."""
+    for attempt in range(180):
+        response = await api.request("GET", "/api/core/state")
+        state = response.get("state")
+        if state == "RUNNING":
+            return
+        check(state in ("NOT_RUNNING", "STARTING"), f"Unexpected Home Assistant core state: {state!r}")
+        await asyncio.sleep(1)
+    raise AssertionError("Home Assistant core did not reach RUNNING in 180 seconds")
+
+
 async def token_grant(api, grant):
     return await api.request("POST", "/auth/token", {**grant, "client_id": CLIENT}, form=True)
 
@@ -126,7 +140,21 @@ async def configure(api):
     raise AssertionError("Integration setup did not complete")
 
 
-async def assert_snapshot(api, expected):
+def supports_shop_urls(version):
+    parts = version.split('.')
+    check(len(parts) == 3 and all(part.isdecimal() for part in parts), "Unexpected package version")
+    return tuple(map(int, parts)) >= (1, 2, 0)
+
+
+async def set_shop_urls(api):
+    """Exercise both new write APIs after preserving an old package's export."""
+    await api.mutate("battery_inventory", shop_urls={"AA": BATTERY_SHOP_URL})
+    current = await api.action("get", fields=["settings"])
+    material = dict(current["settings"]["consumables"]["fixture-filter"], shop_url=MATERIAL_SHOP_URL)
+    await api.mutate("save_consumable", value=material)
+
+
+async def assert_snapshot(api, expected, *, shop_urls):
     actual = await api.action("export")
     check(actual == expected, "Persistent export changed across lifecycle operation")
     snapshot = await api.action("get")
@@ -140,6 +168,9 @@ async def assert_snapshot(api, expected):
     check(snapshot["logs"], "Completion history persisted")
     check(snapshot["settings"]["battery_inventory"]["AA"] == 3, "Battery stock persisted")
     check(snapshot["settings"]["consumables"]["fixture-filter"]["quantity"] == 1.5, "Material stock persisted")
+    if shop_urls:
+        check(snapshot["settings"]["battery_shop_urls"]["AA"] == BATTERY_SHOP_URL, "Battery shop link persisted")
+        check(snapshot["settings"]["consumables"]["fixture-filter"]["shop_url"] == MATERIAL_SHOP_URL, "Material shop link persisted")
     panels = await api.ws({"type": "get_panels"})
     check("wartung" in panels and panels["wartung"]["require_admin"], "Admin-only panel registered")
     source = await api.request("GET", "/ha_wartung/panel.js")
@@ -160,7 +191,10 @@ async def bootstrap(session):
     await api.request("POST", "/api/onboarding/core_config", {})
     await api.request("POST", "/api/onboarding/analytics", {})
     await api.request("POST", "/api/onboarding/integration", {"client_id": CLIENT, "redirect_uri": CLIENT})
+    await wait_running(api)
     entry_id = await configure(api)
+    version = (await api.action("get", fields=["version"]))["version"]
+    shop_urls = supports_shop_urls(version)
     empty = await api.action("export")
     check(all(not empty[name] for name in ("devices", "rules", "logs", "shopping")), "Fresh installation has no household data")
     duplicate = await api.request("POST", "/api/config/config_entries/flow", {"handler": DOMAIN})
@@ -188,9 +222,11 @@ async def bootstrap(session):
                                           "notes": "Synthetic device note", "battery_type": "AA", "battery_quantity": 2})
     await api.mutate("save_device", value={"id": "fixture-linked", "name": "Example controller", "category": "Smart Home",
                                           "related_devices": [{"id": "fixture-device"}]})
-    await api.mutate("battery_inventory", stocks={"AA": 3}, thresholds={"AA": 1}, notes={"AA": "Synthetic battery note"})
+    await api.mutate("battery_inventory", stocks={"AA": 3}, thresholds={"AA": 1}, notes={"AA": "Synthetic battery note"},
+                     **({"shop_urls": {"AA": BATTERY_SHOP_URL}} if shop_urls else {}))
     await api.mutate("save_consumable", value={"id": "fixture-filter", "name": "Example filter", "unit": "pieces",
-                                              "quantity": 2.5, "threshold": 1, "notes": "Synthetic material note", "device_ids": ["fixture-device"]})
+                                              "quantity": 2.5, "threshold": 1, "notes": "Synthetic material note", "device_ids": ["fixture-device"],
+                                              **({"shop_url": MATERIAL_SHOP_URL} if shop_urls else {})})
     await api.mutate("save_rule", value={"id": "fixture-rule", "device_id": "fixture-device", "name": "Replace filter",
                                         "kind": "date", "due_date": "2020-01-01",
                                         "consumable": {"kind": "material", "id": "fixture-filter", "quantity": 1}})
@@ -203,9 +239,9 @@ async def bootstrap(session):
     await api.ws({"type": DOMAIN + "/request", "action": "save_device", "payload": {
         "revision": revision, "value": {"id": "fixture-device", "name": "Stale update"}}}, expect_error="invalid_request")
     expected = await api.action("export")
-    await assert_snapshot(api, expected)
+    await assert_snapshot(api, expected, shop_urls=shop_urls)
     STATE.write_text(json.dumps({"token": token, "refresh_token": grant["refresh_token"],
-                                 "entry_id": entry_id, "expected": expected,
+                                 "entry_id": entry_id, "expected": expected, "shop_urls": shop_urls, "initial_version": version,
                                  "username": "release-test-owner", "password": password, "helper_entity": helper_entity}))
     print("PASS: fresh install, real config flow, singleton, admin boundary, atomic completion, persisted fixture", flush=True)
 
@@ -213,6 +249,7 @@ async def bootstrap(session):
 async def lifecycle(session, phase):
     state = json.loads(STATE.read_text())
     api = await refresh_api(session, state)
+    await wait_running(api)
     STATE.write_text(json.dumps(state))
     # Wait for integration startup after validating the persisted auth grant.
     for attempt in range(120):
@@ -223,16 +260,20 @@ async def lifecycle(session, phase):
             raise
         except Exception:
             await asyncio.sleep(1)
-    await assert_snapshot(api, state["expected"])
+    await assert_snapshot(api, state["expected"], shop_urls=state["shop_urls"])
     if phase == "preferences":
+        version = (await api.action("get", fields=["version"]))["version"]
+        check(supports_shop_urls(version), "Updated package must support shop links")
         await api.mutate("preferences", value={"currency": "EUR", "battery_threshold_entity": state["helper_entity"]})
+        await set_shop_urls(api)
+        state["shop_urls"] = True
         state["expected"] = await api.action("export")
-        await assert_snapshot(api, state["expected"])
+        await assert_snapshot(api, state["expected"], shop_urls=state["shop_urls"])
         STATE.write_text(json.dumps(state))
     elif phase == "reload":
         response = await api.request("POST", "/api/config/config_entries/entry/" + state["entry_id"] + "/reload")
         check(response.get("require_restart") is False, f"Reload result: {response}")
-        await assert_snapshot(api, state["expected"])
+        await assert_snapshot(api, state["expected"], shop_urls=state["shop_urls"])
     elif phase == "reinstall":
         response = await api.request("DELETE", "/api/config/config_entries/entry/" + state["entry_id"])
         check(response.get("require_restart") is False, f"Removal result: {response}")
@@ -240,7 +281,7 @@ async def lifecycle(session, phase):
         panels = await api.ws({"type": "get_panels"})
         check("wartung" not in panels, "Unloaded panel removed")
         state["entry_id"] = await configure(api)
-        await assert_snapshot(api, state["expected"])
+        await assert_snapshot(api, state["expected"], shop_urls=state["shop_urls"])
         STATE.write_text(json.dumps(state))
     print("PASS: " + phase + " preserves real stored devices, links, tasks, history and inventory", flush=True)
 

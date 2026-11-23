@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 1.2.0
+
+- Sofortige Textsuche im Verbrauchsmaterial, einschliesslich Batterien, Notizen und zugeordneter Geräte.
+- Umschalter zwischen Kacheln und einer kompakten Liste mit Beständen, Nachkaufgrenzen und Aktionen.
+- Optionale Shop-Links für Batterietypen und weitere Materialien, direkt beim Artikel und bei zugehörigen Nachkaufaufträgen erreichbar.
+
 ## 1.1.1
 
 - Konfigurationsschema für die ausschliessliche Einrichtung über Home-Assistant-Geräte & Dienste ergänzt; dadurch entfällt die hassfest-Warnung.

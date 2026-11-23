@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const root=path.join(__dirname,'..');let Panel;const createdButtons=[];
 const source=fs.readFileSync(path.join(root,'custom_components/ha_wartung/frontend/panel.js'),'utf8');
-vm.runInNewContext(source,{HTMLElement:class{},customElements:{get:()=>null,define:(_,value)=>Panel=value},crypto:{randomUUID:()=> 'new-material'},document:{createElement:()=>{const button={};createdButtons.push(button);return button;}}});
+vm.runInNewContext(source,{URL,HTMLElement:class{},customElements:{get:()=>null,define:(_,value)=>Panel=value},crypto:{randomUUID:()=> 'new-material'},document:{createElement:()=>{const button={};createdButtons.push(button);return button;}}});
 const plain=value=>JSON.parse(JSON.stringify(value));
 function fixture(){
  const body={innerHTML:'',querySelectorAll:()=>[]},p=Object.create(Panel.prototype);

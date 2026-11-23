@@ -71,6 +71,8 @@ The first four screenshots show a configured installation. Additional images lab
 - Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.
 - Plan tasks by one-off date, interval, annual season, rotating work steps, sensor value, device indication or without a due date. A rotation can link a different material to each step. Record completion dates, costs and notes, and edit the resulting history.
 - Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
+- Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact list of stock, thresholds and actions.
+- Add an optional shop URL to a battery type or material. Its **Shop** link opens in a new tab from the inventory or the associated purchase reminder.
 - Track stock, individual purchase thresholds, purchase requests, notes and the devices that use each item. Battery usage lists include the required quantity per device; linked purchase notes are shared with the material.
 - Find low batteries in the task view using a shared Home Assistant threshold helper.
 - Organize devices as active, stored, archived or in the trash; link related devices in both directions, and edit or reorder categories and event types. Stored and archived devices retain history without active reminders.

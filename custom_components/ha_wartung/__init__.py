@@ -29,7 +29,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.1.1'
+VERSION = '1.2.0'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -722,9 +722,12 @@ class Directory:
                 if not isinstance(notes, str) or len(notes) > 20000:
                     raise ValueError('Notizen müssen Text mit höchstens 20000 Zeichen sein.')
                 ids = validate_material_device_ids(new, value.get('device_ids', materials.get(identity, {}).get('device_ids', [])))
+                shop_url = engine.normalize_shop_url(value.get('shop_url', materials.get(identity, {}).get('shop_url', '')))
                 materials[identity] = {k:value[k] for k in ('id','name','unit','quantity','threshold')}
                 materials[identity]['device_ids'] = ids
                 materials[identity]['notes'] = notes
+                if shop_url:
+                    materials[identity]['shop_url'] = shop_url
                 result['id'] = identity
             elif action == 'consumable_purchase':
                 item = new['shopping'].get(p.get('id'), {})
@@ -764,18 +767,21 @@ class Directory:
                 new['operations'][identity] = item['id']
                 result['id'] = item['id']
             elif action == 'edit_battery_type':
-                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'))
+                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'), **({'shop_url':p['shop_url']} if 'shop_url' in p else {}))
             elif action == 'battery_inventory':
                 stocks = p.get('stocks', {})
                 removed = p.get('remove_types', [])
                 device_links = p.get('device_links', {})
                 thresholds = p.get('thresholds', {})
                 notes = p.get('notes', {})
+                shop_urls = p.get('shop_urls', {})
+                if not isinstance(shop_urls, dict) or len(shop_urls) > 100:
+                    raise ValueError('Ungültige Batterie-Shop-Links.')
                 if not isinstance(notes, dict) or len(notes) > 100 or any(not isinstance(text, str) or len(text) > 20000 for text in notes.values()):
                     raise ValueError('Ungültige Batterie-Notizen.')
-                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes):
+                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes or shop_urls):
                     raise ValueError('Batterietypen und Bestände fehlen.')
-                for kind in [*stocks, *removed, *device_links, *thresholds, *notes]:
+                for kind in [*stocks, *removed, *device_links, *thresholds, *notes, *shop_urls]:
                     if not isinstance(kind, str) or not kind.strip() or len(kind) > 160:
                         raise ValueError('Ungültiger Batterietyp.')
                 for quantity in stocks.values():
@@ -793,6 +799,17 @@ class Directory:
                 if any(kind not in updated for kind in notes):
                     raise ValueError('Batterietyp für Notizen wurde nicht gefunden.')
                 settings['battery_notes'] = {kind:text for kind,text in dict(settings.get('battery_notes', {}), **notes).items() if kind not in removed}
+                if 'shop_urls' in p or 'battery_shop_urls' in settings:
+                    urls = dict(settings.get('battery_shop_urls', {}))
+                    for kind, value in shop_urls.items():
+                        if kind not in updated:
+                            raise ValueError('Batterietyp für den Shop-Link wurde nicht gefunden.')
+                        url = engine.normalize_shop_url(value)
+                        if url:
+                            urls[kind] = url
+                        else:
+                            urls.pop(kind, None)
+                    settings['battery_shop_urls'] = {kind:url for kind,url in urls.items() if kind not in removed}
                 hidden = set(settings.get('battery_inventory_hidden_types', []))
                 hidden.update(removed)
                 hidden.difference_update(stocks)
@@ -825,7 +842,7 @@ class Directory:
                 if p.get('confirmed') is not True or p.get('confirmation') != 'DATEN ZURÜCKSETZEN':
                     raise ValueError('Das endgültige Löschen der Geräte- und Aufgabendaten muss ausdrücklich bestätigt werden.')
                 settings = deepcopy(new.get('settings', {}))
-                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
+                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'battery_shop_urls', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
                     settings.pop(key, None)
                 new = engine.blank()
                 new.update(settings=settings, questions=[], samples={})

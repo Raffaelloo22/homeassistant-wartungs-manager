@@ -1,7 +1,13 @@
 """Edit a battery inventory type without orphaning stock references."""
 import re
+try:
+ from .engine import normalize_shop_url
+except ImportError:  # Pure-module imports in the offline test harness.
+ from engine import normalize_shop_url
 
-def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_ids, threshold=None, notes=None):
+_UNSET = object()
+
+def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_ids, threshold=None, notes=None, shop_url=_UNSET):
  settings=data.setdefault('settings',{});stocks=settings.setdefault('battery_inventory',{})
  known=set(stocks)|set(settings.get('battery_inventory_hidden_types',[]))|set(settings.get('battery_device_links',{}))
  known.update(normalize(d.get('battery_type')) for d in data['devices'].values() if d.get('battery_type'))
@@ -12,6 +18,7 @@ def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_
  if threshold is None:threshold=settings.get('battery_inventory_thresholds',{}).get(old,1)
  if type(threshold) is not int or not 0<=threshold<=100000:raise ValueError('Nachkauf-Schwelle muss eine ganze Zahl zwischen 0 und 100000 sein.')
  if notes is not None and (not isinstance(notes,str) or len(notes)>20000):raise ValueError('Notizen müssen Text mit höchstens 20000 Zeichen sein.')
+ url=normalize_shop_url(settings.get('battery_shop_urls',{}).get(old,'') if shop_url is _UNSET else shop_url)
  ids=validate_ids(data,device_ids)
  stocks.pop(old,None);stocks[new]=quantity
  thresholds=settings.setdefault('battery_inventory_thresholds',{});thresholds.pop(old,None);thresholds[new]=threshold
@@ -19,6 +26,10 @@ def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_
  saved_notes=settings.setdefault('battery_notes',{})
  if new!=old and old in saved_notes:saved_notes[new]=saved_notes.pop(old)
  if notes is not None:saved_notes[new]=notes
+ if 'battery_shop_urls' in settings or shop_url is not _UNSET:
+  urls=settings.setdefault('battery_shop_urls',{});urls.pop(old,None)
+  if url:urls[new]=url
+  else:urls.pop(new,None)
  if new!=old:
   for device in data['devices'].values():
    if normalize(device.get('battery_type'))==old:device['battery_type']=new

@@ -9,12 +9,55 @@ from datetime import date, datetime, timedelta, timezone
 from math import isfinite
 from uuid import uuid4
 from hashlib import sha256
+from ipaddress import ip_address
+from urllib.parse import urlsplit
 import re
 
 
 BACKEND_UPCOMING_DAYS = 7  # Preserve the existing status/digest window; the dashboard filter uses 14.
 DEFAULT_DEVICE_CATEGORIES = ['Haushalt', 'Heizung', 'Internet und WLAN', 'Netzwerk & Büro', 'Fahrzeuge', 'Garten', 'Licht', 'Beschattung', 'Gefahrenmelder', 'Tür- und Fenstermelder', 'Bewegungsmelder', 'Temperatursensoren', 'Sensoren', 'Zutritt', 'Kameras', 'Audio und Medien', 'Buttons', 'Smart Home']
 DEFAULT_EVENT_TYPES = {'maintenance':'Wartung', 'repair':'Reparatur', 'installation':'Installation', 'replacement':'Ersatz', 'purchase':'Kauf / Bestellung', 'inspection':'Prüfung', 'note':'Notiz'}
+
+
+def normalize_shop_url(value):
+    """Validate a user-supplied shop link without fetching it."""
+    error = 'Shop-Link benötigt eine gültige HTTP- oder HTTPS-Adresse ohne Zugangsdaten.'
+    if not isinstance(value, str) or len(value) > 2048:
+        raise ValueError(error)
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError(error)
+    value = value.strip()
+    if not value:
+        return ''
+    if any(char.isspace() for char in value) or any(char in value for char in '\\<>"'):
+        raise ValueError(error)
+    try:
+        parsed = urlsplit(value)
+        host, port = parsed.hostname, parsed.port
+        if (parsed.scheme not in ('http', 'https') or not host
+            or parsed.username is not None or parsed.password is not None
+            or parsed.netloc.endswith(':') or port is not None and not 1 <= port <= 65535):
+            raise ValueError(error)
+        if parsed.netloc.startswith('['):
+            if not re.fullmatch(r'\[[0-9a-fA-F:.]+\](?::[0-9]+)?', parsed.netloc) or ip_address(host).version != 6:
+                raise ValueError(error)
+        elif ':' in parsed.netloc and not re.fullmatch(r'[0-9]+', parsed.netloc.rsplit(':', 1)[1]):
+            raise ValueError(error)
+        host = host[:-1] if host.endswith('.') else host
+        try:
+            ip_address(host)
+        except ValueError:
+            if re.fullmatch(r'[0-9.]+', host):
+                raise ValueError(error)
+            ascii_host = host.encode('idna').decode('ascii')
+            if (len(ascii_host) > 253 or any(not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', label)
+                                             for label in ascii_host.split('.'))):
+                raise ValueError(error)
+            # Reject malformed punycode rather than passing it to a browser.
+            ascii_host.encode('ascii').decode('idna')
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError(error) from exc
+    return value
 
 
 def normalize_battery_type(value):
@@ -489,6 +532,8 @@ def _validate_inventory_settings(settings):
             if material['quantity'] is not None:
                 number(material['quantity'], -100000, 'Bestand von ' + identity)
             number(material['threshold'], 0, 'Nachkaufgrenze von ' + identity)
+            if 'shop_url' in material:
+                normalize_shop_url(material['shop_url'])
             if 'notes' in material and not isinstance(material['notes'], str):
                 raise ValueError('Ungültige Materialnotizen im Import: ' + identity)
             if 'device_ids' in material:
@@ -500,6 +545,8 @@ def _validate_inventory_settings(settings):
     for identity, notes in mapping(settings.get('battery_notes', {}), 'battery_notes').items():
         if not isinstance(notes, str):
             raise ValueError('Ungültige Batterienotizen im Import: ' + identity)
+    for identity, url in mapping(settings.get('battery_shop_urls', {}), 'battery_shop_urls').items():
+        normalize_shop_url(url)
     if 'battery_inventory_hidden_types' in settings:
         strings(settings['battery_inventory_hidden_types'], 'battery_inventory_hidden_types')
     for identity, ids in mapping(settings.get('battery_device_links', {}), 'battery_device_links').items():
