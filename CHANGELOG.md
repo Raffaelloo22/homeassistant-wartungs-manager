@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.15
+
+- Batteriewarnungen in den Gerätekacheln sind kontrastreicher und fett hervorgehoben. Der blassrosa Hintergrund wurde entfernt.
+
 ## 1.2.14
 
 - Info-Symbol direkt neben der Fälligkeitsregel im Aufgabenformular ergänzt. Eine aufklappbare Hilfe erklärt alle sieben Regelarten mit Beispielen, ohne eingegebene Formulardaten zu verwerfen.
