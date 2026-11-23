@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 1.2.7
+
+- PDF-Export berücksichtigt „Material ohne Gerätezuordnung ausblenden“ zusätzlich auf der Serverseite.
+- Zusatzzeilen unter dem PDF-Titel entfernt; Datum und Uhrzeit stehen mittig in der Fusszeile jeder Seite.
+
 ## 1.2.6
 
 - PDF-Lagerliste verdichtet: eine Schriftfamilie und eine feste Zeile je Artikel, Bestand und Einheit nebeneinander.

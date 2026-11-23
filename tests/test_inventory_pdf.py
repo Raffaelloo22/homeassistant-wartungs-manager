@@ -38,7 +38,7 @@ class InventoryPdf(unittest.TestCase):
         reader = read_pdf(result)
         self.assertEqual(len(reader.pages), 1)
         text = reader.pages[0].extract_text()
-        for expected in ('Verbrauchsmaterial', 'Stand: 23.11.26', 'Batterien', 'Weitere Verbrauchsmaterialien',
+        for expected in ('Verbrauchsmaterial', '23.11.26 · 14:20', 'Batterien', 'Weitere Verbrauchsmaterialien',
                          'Türsensor - Zimmer Eléa', 'Büro', 'Stück', '-1.5', 'Salz <b> & Reiniger', 'Seite 1'):
             self.assertIn(expected, text)
         self.assertNotIn('/Annots', reader.pages[0], 'Payload markup never creates PDF links or annotations')
@@ -49,6 +49,7 @@ class InventoryPdf(unittest.TestCase):
         self.assertEqual(data, before)
 
     def test_multiple_pages_repeat_only_column_headers_and_number_every_page(self):
+        from inventory_pdf import _width
         items = [item()]
         items += [dict(kind='material', name=f'Filter {index:03d}', quantity=index / 2,
                        unit='Stück', devices=['Gerät A', 'Gerät B']) for index in range(90)]
@@ -65,6 +66,9 @@ class InventoryPdf(unittest.TestCase):
             for header in ('Bestand', 'Bezeichnung', 'Geräte'):
                 self.assertIn(header, text)
             self.assertIn('Seite ' + str(index), text)
+            self.assertEqual(text.count('23.11.26 · 14:20'), 1)
+            self.assertNotIn('Stand:', text)
+            self.assertNotRegex(text, r'\b\d+ Artikel\b')
             self.assertAlmostEqual(float(page.mediabox.width), 595.2756, places=3)
             self.assertAlmostEqual(float(page.mediabox.height), 841.8898, places=3)
             forms = page['/Resources']['/XObject']
@@ -72,6 +76,33 @@ class InventoryPdf(unittest.TestCase):
             self.assertEqual(logo['/Subtype'], '/Form')
             self.assertEqual(list(logo['/BBox']), [0, 0, 256, 256])
             self.assertIn(b'/FormXob.WartungsManagerLogo Do', page.get_contents().get_data())
+            spans, logo_matrices = [], []
+            def visit_text(value, cm, tm, font, size):
+                if value.strip():
+                    spans.append((value.strip(), tm[4], tm[5], size))
+            def visit_operand(operator, operands, cm, tm):
+                if operator == b'Do' and str(operands[0]) == '/FormXob.WartungsManagerLogo':
+                    logo_matrices.append(tuple(cm))
+            page.extract_text(visitor_text=visit_text, visitor_operand_before=visit_operand)
+            brand, timestamp, number = [next(span for span in spans if span[0] == label)
+                                        for label in ('Wartungs-Manager', '23.11.26 · 14:20', 'Seite ' + str(index))]
+            self.assertAlmostEqual(timestamp[1] + _width(timestamp[0], timestamp[3]) / 2,
+                                   float(page.mediabox.width) / 2, places=2,
+                                   msg='The timestamp is centered on the page, not the remaining footer space')
+            for span in (brand, timestamp, number):
+                self.assertAlmostEqual(span[2], timestamp[2], places=3,
+                                       msg='Brand, date/time and page number share one footer baseline')
+                self.assertGreater(span[2], 0)
+                self.assertLess(span[2], 17 * 72 / 25.4)
+            self.assertLess(brand[1] + _width(brand[0], brand[3]), timestamp[1])
+            self.assertLess(timestamp[1] + _width(timestamp[0], timestamp[3]), number[1])
+            self.assertLessEqual(number[1] + _width(number[0], number[3]), float(page.mediabox.width))
+            self.assertEqual(len(logo_matrices), 1)
+            a, b, c, d, e, f = logo_matrices[0]
+            logo_points = [(a * x + c * y + e, b * x + d * y + f)
+                           for x, y in ((0, 0), (0, 256), (256, 0), (256, 256))]
+            self.assertGreaterEqual(min(point[0] for point in logo_points), 0)
+            self.assertLess(max(point[0] for point in logo_points), brand[1])
 
     def test_long_device_lists_are_one_line_with_an_exact_remaining_count(self):
         for count in (20, 150):
@@ -84,7 +115,7 @@ class InventoryPdf(unittest.TestCase):
                 self.assertGreater(shown, 0)
                 self.assertLess(shown, count)
                 self.assertIn(f'(+{count - shown} Geräte)', text)
-                self.assertIn('Lange Angaben werden mit … gekürzt.', text)
+                self.assertNotIn('Lange Angaben', text)
         reader = read_pdf(build_inventory_pdf(payload([item(devices=['Ein sehr langer Gerätename ' * 15])]), WHEN))
         self.assertIn('…', reader.pages[0].extract_text())
         self.assertNotIn('(+1 Gerät)', reader.pages[0].extract_text())
@@ -143,14 +174,51 @@ class InventoryPdf(unittest.TestCase):
         self.assertIn('1.2345678901234567', text)
         self.assertIn('1e-100', text)
 
-    def test_empty_selection_and_filter_context_are_explicit(self):
+    def test_empty_selection_has_no_removed_subtitles_or_filter_annotations(self):
         result = build_inventory_pdf(dict(items=[], query='Filter & Salz', assigned_only=True), WHEN)
         text = read_pdf(result).pages[0].extract_text()
-        self.assertIn('0 Artikel', text)
-        self.assertIn('Suche: Filter & Salz', text)
-        self.assertIn('Material ohne Gerätezuordnung ausgeblendet', text)
+        self.assertIn('Verbrauchsmaterial', text)
+        self.assertIn('23.11.26 · 14:20', text)
+        for removed in ('Stand:', '0 Artikel', 'Suche:', 'Filter & Salz',
+                        'Material ohne Gerätezuordnung ausgeblendet', 'Lange Angaben'):
+            self.assertNotIn(removed, text)
         self.assertIn('Keine Artikel', text)
         self.assertNotIn('Weitere Verbrauchsmaterialien', text)
+
+    def test_assigned_only_filters_both_groups_even_with_unfiltered_payload_without_mutation(self):
+        items = [item(name='AA Batterie mit Gerät'),
+                 item(name='CR2016 Batterie ohne Gerät', devices=[]),
+                 item(kind='material', name='Kaffeefilter mit Gerät', devices=['Kaffeemaschine']),
+                 item(kind='material', name='Salz ohne Gerät', devices=[])]
+        for assigned_only in (False, True):
+            with self.subTest(assigned_only=assigned_only):
+                request = payload(items, query='Nicht als Untertitel drucken', assigned_only=assigned_only)
+                before = deepcopy(request)
+                text = read_pdf(build_inventory_pdf(request, WHEN)).pages[0].extract_text()
+                for expected in ('AA Batterie mit Gerät', 'Kaffeefilter mit Gerät', 'Kaffeemaschine'):
+                    self.assertIn(expected, text)
+                for unassigned in ('CR2016 Batterie ohne Gerät', 'Salz ohne Gerät'):
+                    if assigned_only:
+                        self.assertNotIn(unassigned, text)
+                    else:
+                        self.assertIn(unassigned, text)
+                count = 1 if assigned_only else 2
+                self.assertIn(f'Batterien · {count}', text)
+                self.assertIn(f'Weitere Verbrauchsmaterialien · {count}', text)
+                self.assertNotIn(request['query'], text)
+                self.assertEqual(request, before, 'Exporting a filtered PDF must not change the supplied rows')
+
+    def test_assigned_only_can_leave_an_empty_inventory(self):
+        request = payload([item(devices=[]), item(kind='material', name='Salz', devices=[])], assigned_only=True)
+        before = deepcopy(request)
+        reader = read_pdf(build_inventory_pdf(request, WHEN))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        self.assertIn('Keine Artikel', text)
+        self.assertNotIn('AA Batterie', text)
+        self.assertNotIn('Salz', text)
+        self.assertNotIn('Weitere Verbrauchsmaterialien', text)
+        self.assertEqual(request, before)
 
     def test_null_stock_and_unassigned_devices_are_printable(self):
         result = build_inventory_pdf(payload([item(quantity=None, devices=[])]), WHEN)

@@ -166,6 +166,8 @@ def _logo(canvas):
 def build_inventory_pdf(payload, when):
     """Render one line per material without writes or access to a Home Assistant object."""
     data = validate_inventory_pdf(payload)
+    if data['assigned_only']:
+        data['items'] = [item for item in data['items'] if item['devices']]
     _fonts()
     page_width, page_height = A4
     left, right = 12 * mm, page_width - 12 * mm
@@ -175,22 +177,14 @@ def build_inventory_pdf(payload, when):
     name_width = 75 * mm
     widths = [stock_width, name_width, usable - stock_width - name_width]
     starts = [left, left + stock_width, left + stock_width + name_width]
-    rows, shortened = [], False
+    rows = []
     for item in data['items']:
         amount = _quantity(item['quantity'])
-        unit, unit_short = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' ')))
+        unit, _ = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' ')))
         stock = amount + (' ' + unit if unit else '')
-        name, name_short = _fit(item['name'], widths[1] - 8)
-        devices, devices_short = _device_text(item['devices'], widths[2] - 8)
-        shortened |= unit_short or name_short or devices_short
+        name, _ = _fit(item['name'], widths[1] - 8)
+        devices, _ = _device_text(item['devices'], widths[2] - 8)
         rows.append(dict(kind=item['kind'], stock=stock, name=name, devices=devices))
-    filters = []
-    if data['query']:
-        filters.append('Suche: ' + data['query'])
-    if data['assigned_only']:
-        filters.append('Material ohne Gerätezuordnung ausgeblendet')
-    filter_text, filter_short = _fit(' · '.join(filters), usable)
-    shortened |= filter_short
     output = BytesIO()
     canvas = Canvas(output, pagesize=A4, pageCompression=1)
     canvas.setTitle('Verbrauchsmaterial')
@@ -217,24 +211,13 @@ def build_inventory_pdf(payload, when):
         canvas.setFont('WartungVera', 7)
         canvas.setFillColor(_MUTED)
         canvas.drawString(left + 10 * mm, 10.7 * mm, 'Wartungs-Manager')
+        canvas.drawCentredString(page_width / 2, 10.7 * mm, when.strftime('%d.%m.%y · %H:%M'))
         canvas.drawRightString(right, 10.7 * mm, 'Seite ' + str(page_number))
         if page_number == 1:
             canvas.setFillColor(_INK)
             canvas.setFont('WartungVera', 17)
             canvas.drawString(left, y - 17, 'Verbrauchsmaterial')
-            y -= 33
-            canvas.setFont('WartungVera', 8)
-            canvas.setFillColor(_MUTED)
-            canvas.drawString(left, y, 'Stand: ' + when.strftime('%d.%m.%y · %H:%M')
-                              + ' · ' + str(len(rows)) + ' Artikel')
-            y -= 13
-            if filter_text:
-                canvas.drawString(left, y, filter_text)
-                y -= 13
-            if shortened:
-                canvas.drawString(left, y, 'Lange Angaben werden mit … gekürzt.')
-                y -= 13
-            y -= 4
+            y -= 30
 
     def column_header():
         nonlocal y
