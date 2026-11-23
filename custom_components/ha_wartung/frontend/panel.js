@@ -318,6 +318,8 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
   .inventory-item .inventory-usage>summary{max-width:calc(100% - 148px);min-height:44px;padding:0;line-height:44px;font-size:13px;cursor:pointer;white-space:nowrap;color:#bfcbd0}
   .inventory-usage-desktop,.inventory-item .inventory-desktop-actions{display:none}
   .inventory-usage-mobile{display:inline}
+  .inventory-item>.info>.inventory-device-count+.inventory-usage{grid-row:2;margin:0}
+  .inventory-item>.info>.inventory-device-count+.inventory-usage>summary{max-width:100%;white-space:normal;line-height:1.4;padding:12px 0}
   .inventory-item .inventory-purchase{grid-column:2;grid-row:4;align-self:start;justify-self:end;min-height:44px;margin-top:4px;padding:0 10px;white-space:nowrap;font-size:13px;position:relative;z-index:1}
   .inventory-item .inventory-menu{display:block;grid-column:3;grid-row:4;align-self:start;justify-self:end;margin-top:4px;z-index:2}
   .inventory-item .inventory-menu>summary{width:44px;min-width:44px;min-height:44px;padding:0}
