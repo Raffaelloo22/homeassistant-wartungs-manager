@@ -2,7 +2,7 @@
 
 <img src="custom_components/ha_wartung/brand/icon.png" alt="Wartungs-Manager-Symbol" width="64" height="64">
 
-Automatisierte Wartungsplanung und Vorratsverwaltung für Home Assistant – mit Geräteakten, sensorabhängigen Aufgaben und einer nachvollziehbaren Historie.
+Wartungsplanung und Geräteakten und Verbrauchsmaterialverwaltung für Home Assistant – automatisierte, zeit- oder sensorabhängige Aufgaben und ein Wartungslog.
 
 Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligkeiten, zeigt Batteriewarnungen an und erstellt Nachkaufaufträge bei niedrigen Beständen. Bestätigte Erledigungen schreiben die Historie und die nächste Wartung fort; verknüpftes Verbrauchsmaterial wird nach deiner Bestätigung vom Bestand abgezogen.
 
