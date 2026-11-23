@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.4
+
+- Optionaler Zuordnungsfilter im Verbrauchsmaterial blendet Batterien und weitere Artikel ohne zugeordnete Geräte aus. Kombinierbar mit der Textsuche in Kacheln und Liste; Bestände und Zuordnungen bleiben erhalten.
+
 ## 1.2.3
 
 - Grauer Hintergrund füllt auch bei kurzen oder leeren Ansichten die gesamte Bildschirmhöhe.

@@ -72,6 +72,7 @@ The first four screenshots show a configured installation. Additional images lab
 - Plan tasks by one-off date, interval, annual season, rotating work steps, sensor value, device indication or without a due date. A rotation can link a different material to each step. Record completion dates, costs and notes, and edit the resulting history.
 - Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
 - Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact stock list showing quantity, name and associated devices. The list groups batteries and other materials and sorts each group alphabetically; clicking an article name opens its edit dialog. Other actions remain in the card view; removal is available in the item’s edit dialog.
+- Hide batteries and other consumables without linked devices using the optional assignment filter. It combines with text search in both cards and list view.
 - Add an optional shop URL to a battery type or material. Its **Shop** link opens in a new tab from the inventory or the associated purchase reminder.
 - Track stock, individual purchase thresholds, purchase requests, notes and the devices that use each item. Battery usage lists include the required quantity per device; linked purchase notes are shared with the material.
 - Find low batteries in the task view using a shared Home Assistant threshold helper.
