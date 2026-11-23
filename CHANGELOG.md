@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.1
+
+- „Entfernen“ für Batterietypen und weiteres Verbrauchsmaterial in das jeweilige Bearbeitungsfenster verschoben. Kacheln, Listen und mobile Aktionsmenüs zeigen nur noch die übrigen Aktionen; die bestehende Sicherheitsabfrage bleibt erhalten.
+
 ## 1.2.0
 
 - Sofortige Textsuche im Verbrauchsmaterial, einschliesslich Batterien, Notizen und zugeordneter Geräte.

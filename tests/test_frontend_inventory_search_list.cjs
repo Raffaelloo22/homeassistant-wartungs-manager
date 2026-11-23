@@ -57,9 +57,10 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
  }
  {
   const {p,body}=inventory();p.inventoryLayout='list';p.body();
-  for(const [action,id] of [['batterystock','AA'],['editbatterytype','AA'],['deletebatterytype','AA'],['requestpurchase','battery:AA'],['materialstock','salt'],['material','salt'],['deletematerial','salt'],['requestpurchase','material:salt']]){
+  for(const [action,id] of [['batterystock','AA'],['editbatterytype','AA'],['requestpurchase','battery:AA'],['materialstock','salt'],['material','salt'],['requestpurchase','material:salt']]){
    assert(body.innerHTML.includes('data-action="'+action+'" data-id="'+id+'"'),action+' remains available in list layout');
   }
+  assert(!body.innerHTML.includes('data-action="deletebatterytype"'));assert(!body.innerHTML.includes('data-action="deletematerial"'),'removal is reserved for the edit dialog in both responsive layouts');
   assert(body.innerHTML.includes('inventory-list-stock'));assert(body.innerHTML.includes('-1.5'));assert(body.innerHTML.includes('kg'));assert(body.innerHTML.includes('0.5'));
   assert(body.innerHTML.includes('data-preserve-key="battery-usage:AA"'));assert(body.innerHTML.includes('data-preserve-key="material-usage:filter"'));
   assert(body.innerHTML.includes('Zoé Küchensensor · 2 Batterien'));assert(body.innerHTML.includes('inventory-menu'),'list uses the existing native overflow menu');
@@ -99,6 +100,31 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   assert.deepEqual(writes.pop().payload.shop_urls,{CR2450:'https://example.invalid/cr2450'});
   await p.act('material');await dialog.save(new Map([['name','Reiniger'],['unit','Liter'],['quantity','1'],['threshold','0'],['notes',''],['shop_url','']]));
   assert.equal(writes.pop().payload.value.shop_url,'');
+ }
+ {
+  const {p}=inventory(),before=plain(p.data),writes=[];let dialog;
+  p.modal=(title,html,save,label='Speichern',footer='')=>dialog={title,html,save,label,footer};
+  p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});p.usageDeviceEditor=()=>'';
+  for(const [editor,id,remove,title,label,expected] of [
+   ['material','filter','deletematerial','Verbrauchsmaterial entfernen','Entfernen',{action:'delete_consumable',payload:{id:'filter',confirmed:true}}],
+   ['editbatterytype','AA','deletebatterytype','Batterietyp entfernen','Batterietyp entfernen',{action:'battery_inventory',payload:{remove_types:['AA']}}]
+  ]){
+   await p.act(editor,id);
+   const button=dialog.footer.match(/<button\b([^>]*)>([\s\S]*?)<\/button>/);
+   assert(button,editor+' places removal in its edit dialog footer');
+   assert(button[1].includes('data-action="'+remove+'"')&&button[1].includes('data-id="'+id+'"'));
+   assert(button[1].includes('type="button"'),'removal must not accidentally submit edited form values');
+   assert(button[1].includes('class="inventory-remove"'));assert.equal(button[2],'Entfernen');
+   assert.equal(writes.length,0,'opening an edit dialog must not remove or save anything');
+   await p.act(remove,id);assert.equal(dialog.title,title);assert.equal(dialog.label,label);
+   assert.equal(dialog.footer,'','confirmation has no recursive remove action');
+   assert.equal(writes.length,0,'clicking remove only opens the existing confirmation');
+   assert.deepEqual(plain(p.data),before,'both dialog transitions leave all stored data untouched');
+   await dialog.save(new Map());assert.deepEqual(writes.pop(),expected,'confirmation retains the existing removal API');
+  }
+  await p.act('material');assert.equal(dialog.footer,'','a new material has nothing to remove');
+  await p.act('addbatterytype');assert.equal(dialog.footer,'','a new battery type has nothing to remove');
+  assert.deepEqual(plain(p.data),before);assert.equal(writes.length,0);
  }
  console.log('PASS: Inventarsuche und Listenumschalter bleiben unabhängig und ohne Datenmutation; sichere Shop-Links, Mengen, Aktionen und Formular-/Bestandspayloads bleiben korrekt.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

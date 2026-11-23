@@ -24,8 +24,8 @@ function expectAction(rows,action,id,count,label){
   assert(stock.aria.includes(name+': Bestand '+quantity+' '+unit+' ändern'),'quantity remains directly editable with its unit');
   expectAction(rows,'requestpurchase',kind+':'+id,1,'Nachkaufen');
   expectAction(rows,editAction,id,2,'Bearbeiten');
-  expectAction(rows,removeAction,id,2,'Entfernen');
-  assert(html.includes('inventory-desktop-actions'),'desktop retains its visible edit/remove group');
+  expectAction(rows,removeAction,id,0,'Entfernen');
+  assert(html.includes('inventory-desktop-actions'),'desktop retains its visible edit action');
   assert(/<details\b[^>]*class="[^"]*\btask-menu\b[^"]*\binventory-menu\b/.test(html),'mobile menu uses the shared native task-menu behavior');
   assert(html.includes('task-menu-actions'),'the mobile menu contains the existing action group');
   assert(html.includes('Weitere Aktionen für '+name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')),'menu has an accessible article-specific name');
@@ -60,6 +60,7 @@ function expectAction(rows,action,id,count,label){
  expectAction(rows,'batterystock','AA',1,'20');expectAction(rows,'batterystock','CR2032',1,'0');
  expectAction(rows,'materialstock','salt',1,'-1.5');
  expectAction(rows,'requestpurchase','battery:AA',1,'Nachkaufen');expectAction(rows,'requestpurchase','material:salt',1,'Nachkaufen');
+ expectAction(rows,'deletebatterytype','AA',0);expectAction(rows,'deletematerial','salt',0);
  const standard=p.usageDeviceLinks(['d','d','removed','missing']);
  assert(!standard.includes('inventory-usage')&&!standard.includes('material-usage:'),'other usages of the device-links helper keep their existing presentation');
  assert.equal(buttons(standard).filter(row=>row.action==='record'&&row.id==='d').length,1);
