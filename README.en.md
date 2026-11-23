@@ -71,7 +71,7 @@ The first four screenshots show a configured installation. Additional images lab
 - Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.
 - Plan tasks by one-off date, interval, annual season, rotating work steps, sensor value, device indication or without a due date. A rotation can link a different material to each step. Record completion dates, costs and notes, and edit the resulting history.
 - Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
-- Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact stock list showing quantity, name and associated devices. Actions remain in the card view; removal is available in the item’s edit dialog.
+- Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact stock list showing quantity, name and associated devices. The list groups batteries and other materials; clicking an article name opens its edit dialog. Other actions remain in the card view; removal is available in the item’s edit dialog.
 - Add an optional shop URL to a battery type or material. Its **Shop** link opens in a new tab from the inventory or the associated purchase reminder.
 - Track stock, individual purchase thresholds, purchase requests, notes and the devices that use each item. Battery usage lists include the required quantity per device; linked purchase notes are shared with the material.
 - Find low batteries in the task view using a shared Home Assistant threshold helper.
@@ -79,6 +79,8 @@ The first four screenshots show a configured installation. Additional images lab
 - Run a read-only data check for missing HA links, invalid material assignments, incomplete battery details and possible duplicates.
 - Undo a recent completion for 30 seconds, including its associated stock deduction. History corrections update linked maintenance state; removing a recorded consumption returns its quantity to current stock.
 - Export and import the directory as JSON. An optional weekly summary appears as a Home Assistant persistent notification.
+
+The **Log** view combines text search with an immediate year filter based on the event date or period. General settings, battery warning controls and the weekly message settings are available directly in the first settings card.
 
 The dashboard has **Aufgaben** (tasks), **Geräte** (devices), **Verbrauchsmaterial** (consumables), **Log** and **Einstellungen** (settings). On phones, the tabs use icons and consumables use compact cards with a stock button and an actions menu.
 

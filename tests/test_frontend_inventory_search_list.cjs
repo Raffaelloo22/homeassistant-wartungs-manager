@@ -54,14 +54,15 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
  }
  {
   const {p,body,toolbar}=inventory(),before=plain(p.data);
-  p.body();assert.deepEqual(toolbar.at(-1),{count:'4 Artikel',list:false});assert(body.innerHTML.includes('device-grid'));assert(!body.innerHTML.includes('inventory-view-switch'),'the layout toolbar is not duplicated in the body');
+  p.body();assert.deepEqual(toolbar.at(-1),{count:'4 Artikel',list:false});assert(body.innerHTML.includes('device-grid'));assert(body.innerHTML.includes('inventory-intro'),'cards retain their stock explanation');assert(!body.innerHTML.includes('inventory-view-switch'),'the layout toolbar is not duplicated in the body');
   p.filterChanged('inventoryQuery','wasser');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert(body.innerHTML.includes('Wasserfilter'));assert(!body.innerHTML.includes('Entkalkersalz'));
   await p.act('inventorylayout','list');assert.equal(p.inventoryLayout,'list');assert.equal(p.inventoryQuery,'wasser');
-  assert(body.innerHTML.includes('class="inventory-list" role="list"'));assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,1);
+  assert.deepEqual([...body.innerHTML.matchAll(/role="list" aria-label="([^"]+)"/g)].map(match=>match[1]),['Weitere Verbrauchsmaterialien'],'only the group containing the search result is shown');assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,1);assert(body.innerHTML.includes('Weitere Verbrauchsmaterialien<span class="tag count-tag">1</span>'),'group counts follow the filtered rows');assert(!body.innerHTML.includes('inventory-intro'),'the stock explanation is hidden in the compact list');
   assert.equal(toolbar.at(-1).list,true);
   assert(body.innerHTML.includes('?')&&body.innerHTML.includes('Stück'),'unknown stock remains visible as text');
   assert(!body.innerHTML.includes('Bestand unbekannt Stück ändern'));assert(!body.innerHTML.includes('Nachkaufen ab'));assert(!body.innerHTML.includes('Für die Küche'),'notes remain searchable without expanding the compact stock list');
-  p.filterChanged('inventoryQuery','nichts');assert.equal(toolbar.at(-1).count,'0 von 4 Artikeln');assert(body.innerHTML.includes('Keine passenden Artikel'));assert(!body.innerHTML.includes('role="listitem"'));
+  p.filterChanged('inventoryQuery','cr2032');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert.deepEqual([...body.innerHTML.matchAll(/role="list" aria-label="([^"]+)"/g)].map(match=>match[1]),['Batterien'],'battery-only searches hide the empty material group');
+  p.filterChanged('inventoryQuery','nichts');assert.equal(toolbar.at(-1).count,'0 von 4 Artikeln');assert(body.innerHTML.includes('Keine passenden Artikel'));assert(!body.innerHTML.includes('role="listitem"'));assert(!body.innerHTML.includes('role="list"'),'no empty group containers remain for a zero-result search');
   const input={value:'nichts',focus(){this.focused=true;}},clear={hidden:false};
   const old=p.shadowRoot.querySelector;p.shadowRoot.querySelector=selector=>selector==='#search'?input:selector==='#clearsearch'?clear:old(selector);
   await p.act('clearsearch');assert.equal(p.inventoryQuery,'');assert.equal(input.value,'');assert(input.focused);assert(clear.hidden);
@@ -74,12 +75,14 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   p.data.devices.linked.name='Mara <Türsensor> & Licht';
   p.data.settings.battery_device_links.AA=['linked','d','linked','missing'];
   const before=plain(p.data);p.body();
-  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),[],'the list body has no article, add or duplicate layout buttons');
-  assert(body.innerHTML.includes('class="inventory-list" role="list"'));assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,4);
+  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),['editbatterytype','editbatterytype','material','material'],'only article names are interactive in the list, without add or duplicate layout buttons');
+  assert.deepEqual([...body.innerHTML.matchAll(/role="list" aria-label="([^"]+)"/g)].map(match=>match[1]),['Batterien','Weitere Verbrauchsmaterialien']);assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,4);assert(!body.innerHTML.includes('inventory-intro'));assert.equal((body.innerHTML.match(/class="tag count-tag">2<\/span>/g)||[]).length,2,'each group has the correct article count');
   for(const item of p.inventoryItems()){
    const html=p.inventoryListRow(item);
    assert(html.indexOf('inventory-list-stock')<html.indexOf('inventory-list-name')&&html.indexOf('inventory-list-name')<html.indexOf('inventory-list-devices'),'each compact row reads quantity, article, devices');
-   assert(!/<(?:button|a|details)\b/.test(html));assert(!html.includes('data-action='),'list rows are plain text without hidden mobile actions');
+   const buttons=[...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)];assert.equal(buttons.length,1,'only the article name is clickable');
+   const expected=item.kind==='battery'?'editbatterytype':'material';assert(buttons[0][1].includes('data-action="'+expected+'"')&&buttons[0][1].includes('data-id="'+item.id+'"'));assert(buttons[0][1].includes('class="inventory-list-name"'),'the edit trigger keeps its plain article-name styling');assert(buttons[0][1].includes('type="button"')&&buttons[0][1].includes('aria-haspopup="dialog"'),'the name is an explicit accessible dialog trigger');
+   assert(!/<(?:a|details)\b/.test(html));assert.equal((html.match(/data-action=/g)||[]).length,1,'no extra or hidden mobile actions return');
    for(const absent of ['Nachkaufen','Bearbeiten','Entfernen','inventory-list-threshold','inventory-usage','inventory-notes','shop-link'])assert(!html.includes(absent),absent+' is reserved for cards and editing');
   }
   const rows=p.inventoryItems(),battery=p.inventoryListRow(rows.find(item=>item.id==='AA')),material=p.inventoryListRow(rows.find(item=>item.id==='salt')),unknown=p.inventoryListRow(rows.find(item=>item.id==='filter'));
@@ -92,8 +95,15 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   assert(!body.innerHTML.includes('Trocken &amp; kühl lagern'));assert(!body.innerHTML.includes('Sack im Keller'));assert(!body.innerHTML.includes('example.invalid'));
   assert.deepEqual(plain(p.data),before,'the compact list does not change stored materials, notes, links or quantities');
   p.data.devices.unclear={id:'unclear',name:'Sensor ohne Batterietyp',battery_type:'unbekannt'};p.body();
-  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),[],'unresolved battery assignments do not reintroduce device buttons into the stock list');
+  assert.deepEqual([...body.innerHTML.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),['editbatterytype','editbatterytype','material','material'],'unresolved battery assignments do not reintroduce device buttons into the stock list');
   await p.act('inventorylayout','cards');assert(body.innerHTML.includes('Batterietyp noch offen'));assert(body.innerHTML.includes('data-action="record" data-id="unclear"'),'unresolved assignments remain manageable in cards');
+  const writes=[];let dialog;p.modal=(title,html,save)=>dialog={title,html,save};p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});p.usageDeviceEditor=()=>'';
+  const beforeOpen=plain(p.data);
+  for(const item of rows){
+   const button=p.inventoryListRow(item).match(/<button\b([^>]*)>/)[1],action=button.match(/data-action="([^"]+)"/)[1],id=button.match(/data-id="([^"]+)"/)[1];
+   await p.act(action,id);assert.equal(dialog.title,item.kind==='battery'?'Batterietyp bearbeiten':'Verbrauchsmaterial');assert.equal(typeof dialog.save,'function');assert.equal(writes.length,0,'clicking an article name opens its editor without saving');
+  }
+  assert.deepEqual(plain(p.data),beforeOpen);
  }
 
  {

@@ -25,17 +25,17 @@ async function run(){
  {
   const p=setup();p.data.settings.currency='EUR';p.data.settings.battery_threshold_entity=CUSTOM;
   p._hass.states={[DEFAULT]:{state:'10'},[CUSTOM]:{state:'35',attributes:{friendly_name:'Warnung <Test> & "Reserve"'}},'sensor.not_a_helper':{state:'15'}};
-  let dialog,writes=[];p.modal=(title,html,save)=>dialog={title,html,save};p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});
-  const before=JSON.stringify(p.data);await p.act('preferences');
-  assert.equal(dialog.title,'Allgemeine Einstellungen');assert.equal(writes.length,0);assert.equal(JSON.stringify(p.data),before,'opening or cancelling preferences does not mutate data');
-  assert(dialog.html.includes('value="'+CUSTOM+'" selected'));assert.equal((dialog.html.match(/value="input_number.batterien_schwellwert"/g)||[]).length,1);
-  assert(!dialog.html.includes('sensor.not_a_helper'));assert(dialog.html.includes('Warnung &lt;Test&gt; &amp; &quot;Reserve&quot;'));assert(!dialog.html.includes('Warnung <Test>'));
-  assert(dialog.html.includes('rechnen vorhandene Beträge aber nicht um'));
-  await dialog.save(new Map([['currency',' eur '],['battery_threshold_entity',CUSTOM]]));
+  let writes=[];p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});p.draw=()=>{};p.scheduleBackgroundFlush=()=>{};
+  const before=JSON.stringify(p.data),fields=p.preferencesFields();
+  assert.equal(writes.length,0);assert.equal(JSON.stringify(p.data),before,'rendering preferences does not mutate data');
+  assert(fields.includes('value="'+CUSTOM+'" selected'));assert.equal((fields.match(/value="input_number.batterien_schwellwert"/g)||[]).length,1);
+  assert(!fields.includes('sensor.not_a_helper'));assert(fields.includes('Warnung &lt;Test&gt; &amp; &quot;Reserve&quot;'));assert(!fields.includes('Warnung <Test>'));
+  assert(fields.includes('rechnen vorhandene Beträge aber nicht um'));
+  await p.saveInlineSettings('preferences',p.inlineSettingsValues('preferences',new Map([['currency',' eur '],['battery_threshold_entity',CUSTOM]])));
   assert.deepEqual(writes,[{action:'preferences',payload:{value:{currency:'EUR',battery_threshold_entity:CUSTOM}}}]);
   assert.equal(JSON.stringify(p.data),before,'submit sends preferences without altering local device/inventory records');
   p.data.settings.currency='<svg onload="x">';p.data.settings.battery_threshold_entity='input_number.missing"<x>';
-  const fields=p.preferencesFields();assert(fields.includes('&lt;svg onload=&quot;x&quot;&gt;'));assert(fields.includes('input_number.missing&quot;&lt;x&gt;'));assert(fields.includes('(derzeit nicht verfügbar)'));assert(!fields.includes('<svg'));
+  const escapedFields=p.preferencesFields();assert(escapedFields.includes('&lt;svg onload=&quot;x&quot;&gt;'));assert(escapedFields.includes('input_number.missing&quot;&lt;x&gt;'));assert(escapedFields.includes('(derzeit nicht verfügbar)'));assert(!escapedFields.includes('<svg'));
  }
  {
   const p=setup();assert.equal(p.batteryThresholdEntity(),DEFAULT);p.data.settings.battery_threshold_entity=CUSTOM;

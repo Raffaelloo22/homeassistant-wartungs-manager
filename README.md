@@ -50,7 +50,7 @@ Die ersten vier Screenshots zeigen eine eingerichtete Installation. Die zusätzl
 <details>
 <summary>Log mit erledigten Aufgaben, Datum, Erfassungszeit und Verbrauch</summary>
 
-Das Log bündelt die Wartungs- und Serviceereignisse mit Gerätelinks und Textsuche. Bei gebuchtem Materialverbrauch werden Artikel und Menge angezeigt.
+Das Log bündelt die Wartungs- und Serviceereignisse mit Gerätelinks, Textsuche und Jahresfilter. Bei gebuchtem Materialverbrauch werden Artikel und Menge angezeigt.
 
 ![Log mit Geräteverknüpfungen, Wartungseinträgen, Datum, Uhrzeit und Materialverbrauch](docs/images/log-desktop.jpg)
 
@@ -104,7 +104,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 ### Verbrauchsmaterial und Nachkaufen
 
 - Mit der sofortigen Textsuche Batterien und weitere Materialien nach Bezeichnung, Notizen, Einheit, Shop-Adresse oder zugeordnetem Gerät finden. Akzente und Umlaute werden wie in den anderen Suchfeldern berücksichtigt; **×** leert die Suche.
-- Zwischen **Kacheln** und einer kompakten **Lagerliste** mit Menge, Bezeichnung und zugeordneten Geräten wechseln. Aktionen bleiben in der Kachelansicht verfügbar; „Entfernen“ steht im jeweiligen Bearbeitungsfenster. Die Suche gilt für beide Darstellungen.
+- Zwischen **Kacheln** und einer kompakten **Lagerliste** mit Menge, Bezeichnung und zugeordneten Geräten wechseln. Die Lagerliste gruppiert Batterien und weitere Materialien; ein Klick auf die Bezeichnung öffnet das Bearbeitungsfenster. Weitere Aktionen bleiben in der Kachelansicht verfügbar; „Entfernen“ steht im jeweiligen Bearbeitungsfenster. Die Suche gilt für beide Darstellungen.
 - Pro Batterietyp oder Material einen optionalen **Shop-Link** hinterlegen. **Shop** öffnet die hinterlegte Adresse in einem neuen Tab – direkt beim Artikel oder beim zugehörigen Nachkaufauftrag.
 - Batterietypen, Filter, Salz, Reinigungs- und Entkalkungsmittel oder andere eigene Artikel verwalten – jeweils mit Bestand, Nachkaufgrenze, Notizen und Gerätezuordnung.
 - Bei Batterien Typ und Anzahl pro Gerät getrennt erfassen. Geräte erscheinen anhand ihres Batterietyps automatisch in der Verwendungsliste; zusätzliche manuelle Zuordnungen sind möglich. **Geräte anzeigen** nennt die benötigte Batterieanzahl je Gerät. Fest verbaute Akkus werden nicht als Wechselbatterievorrat geführt.
@@ -116,7 +116,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 ### Historie, Korrekturen und Rückgängig
 
 - Eine Erledigung erzeugt einen Historieneintrag mit dem ursprünglichen Aufgabentext und dem gewählten Datum. Datum per **Heute**, Tageswechsel oder Kalender wählen; Kosten und Notizen ergänzen.
-- Wartung, Reparatur, Prüfung, Kauf und eigene Ereignisarten nachtragen. In der Geräteakte steht die vollständige Historie. **Log** bündelt die Wartungs- und weiteren Serviceereignisse mit Datum, Erfassungszeit, Textsuche und Gerätelink; Kauf- und reine Notizeinträge stehen in der Geräteakte.
+- Wartung, Reparatur, Prüfung, Kauf und eigene Ereignisarten nachtragen. In der Geräteakte steht die vollständige Historie. **Log** bündelt die Wartungs- und weiteren Serviceereignisse mit Datum, Erfassungszeit, Textsuche, Jahresfilter und Gerätelink; Kauf- und reine Notizeinträge stehen in der Geräteakte.
 - Historieneinträge bearbeiten oder entfernen. Verknüpfte Wartungsdaten werden nachgeführt; beim Entfernen eines gebuchten Verbrauchs wird die protokollierte Menge dem aktuellen Bestand wieder gutgeschrieben.
 - Eine gerade gespeicherte Erledigung für 30 Sekunden mit **Rückgängig** zurücknehmen. Dabei werden auch zugehöriger Materialverbrauch und Aufgabenzustand zurückgesetzt. Zwischenzeitliche Änderungen werden geschützt.
 
@@ -124,7 +124,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 
 - Kategorien und Ereignisarten hinzufügen, umbenennen, entfernen und per Drag-and-drop sortieren; die jeweilige Anzahl zugehöriger Einträge sehen.
 - Batterieschwelle per Schieberegler direkt mit einem Home-Assistant-Helfer synchronisieren. Den Standardhelfer prüft und erstellt das geöffnete Dashboard bei Bedarf selbst; alternativ kann ein vorhandener Helfer gewählt werden.
-- Währung sowie Tag und Uhrzeit der Wochenmeldung einstellen; eine Testmeldung auslösen.
+- Währung, Helferauswahl, Batterieschwelle und Wochenmeldung direkt in der ersten Kachel **Allgemeine Einstellungen** verwalten. Allgemeine Angaben und Wochenmeldung separat speichern; ungespeicherte Eingaben bleiben bei Hintergrundaktualisierungen erhalten. Eine Testmeldung lässt sich weiterhin auslösen.
 - **Datenprüfung** aufrufen: fehlende HA-Geräte und Sensoren, unvollständige Batterieangaben, ungültige Materialzuordnungen, verwaiste Verknüpfungen und mögliche Dubletten mit Links zu den betroffenen Akten prüfen. Die Prüfung verändert keine Daten.
 - Verzeichnis inklusive Einstellungen als JSON exportieren und nach ausdrücklicher Bestätigung wiederherstellen. **Daten zurücksetzen** entfernt Gerätedaten, Aufgaben und Vorräte; Kategorien, Ereignisarten und allgemeine Einstellungen bleiben erhalten.
 

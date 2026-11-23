@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 1.2.2
+
+- Verbrauchsmaterial-Liste in Batterien und weiteres Material gruppiert; die Bezeichnung öffnet direkt das Bearbeitungsfenster.
+- Darstellungsumschalter rechtsbündig, Gerätenamen näher an der Bezeichnung und Hinweistext ausschliesslich in der Kachelansicht.
+- Sofortiger Jahresfilter im Log, kombinierbar mit der Textsuche.
+- Allgemeine Angaben, Batterieschwellenwert und Wochenmeldung direkt in der ersten Einstellungskachel statt in separaten Fenstern.
+
 ## 1.2.1
 
 - Kompakte Liste als reine Lagerliste mit Menge, Bezeichnung und zugeordneten Geräten, ohne Aktionsknöpfe und Nachkaufgrenzen. Suche, Artikelanzahl und Darstellungsumschalter stehen in einer gemeinsamen Zeile.
