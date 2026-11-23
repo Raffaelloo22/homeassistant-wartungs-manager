@@ -71,6 +71,7 @@ class LifecycleProbeAuth(unittest.IsolatedAsyncioTestCase):
             'headers': {}, 'data': {'grant_type': 'refresh_token', 'refresh_token': 'persisted-refresh',
                                    'client_id': 'http://example.invalid/client/'}})])
         self.ready.assert_awaited_once()
+        self.assertEqual(self.ready.await_args.args[1], '/auth/providers')
         self.assertEqual(session.sockets[0].messages, [{'type': 'auth', 'access_token': 'previous-access'}])
 
     async def test_previous_rejection_is_reported_but_saved_refresh_still_validated(self):

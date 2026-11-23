@@ -73,10 +73,10 @@ class API:
         return await self.action(action, revision=current["revision"], **payload)
 
 
-async def wait_ready(api):
+async def wait_ready(api, path="/api/onboarding"):
     for attempt in range(180):
         try:
-            await api.request("GET", "/api/onboarding")
+            await api.request("GET", path)
             return
         except Exception:
             await asyncio.sleep(1)
@@ -94,7 +94,8 @@ async def access_token(api, code):
 
 async def refresh_api(session, state):
     anonymous = API(session)
-    await wait_ready(anonymous)
+    # The onboarding route disappears once setup is complete.
+    await wait_ready(anonymous, "/auth/providers")
     try:
         await API(session, state["token"]).ws()
     except AuthenticationError:
