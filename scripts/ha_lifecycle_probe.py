@@ -178,13 +178,17 @@ async def assert_snapshot(api, expected, *, shop_urls):
     check("ha-wartung-panel" in source, "Bundled frontend is served")
     version = snapshot.get("version")
     if version and tuple(map(int, version.split('.'))) >= (1, 2, 5):
-        pdf = await api.action("inventory_pdf", items=[
-            {"kind": "battery", "name": "AA Batterie", "quantity": 3, "unit": "Stück",
-             "devices": ["Example appliance"]},
-            {"kind": "material", "name": "Example filter", "quantity": 1.5, "unit": "pieces", "devices": []},
-        ], query="", assigned_only=False)
-        check(pdf["content_type"] == "application/pdf" and pdf["filename"].endswith(".pdf"), "PDF download metadata")
-        check(b64decode(pdf["data"], validate=True).startswith(b"%PDF-"), "Real executor returns a PDF document")
+        filters = [{"assigned_only": False}]
+        if tuple(map(int, version.split('.'))) >= (1, 2, 7):
+            filters = [{"assignment_filter": mode} for mode in ("all", "with", "without")]
+        for selection in filters:
+            pdf = await api.action("inventory_pdf", items=[
+                {"kind": "battery", "name": "AA Batterie", "quantity": 3, "unit": "Stück",
+                 "devices": ["Example appliance"]},
+                {"kind": "material", "name": "Example filter", "quantity": 1.5, "unit": "pieces", "devices": []},
+            ], query="", **selection)
+            check(pdf["content_type"] == "application/pdf" and pdf["filename"].endswith(".pdf"), "PDF download metadata")
+            check(b64decode(pdf["data"], validate=True).startswith(b"%PDF-"), "Real executor returns a PDF document")
         check(await api.action("export") == expected, "PDF download must not change records or revision")
 
 

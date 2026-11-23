@@ -2,7 +2,7 @@
 
 ## 1.2.7
 
-- PDF-Export berücksichtigt „Material ohne Gerätezuordnung ausblenden“ zusätzlich auf der Serverseite.
+- Zuordnungsfilter „Gerätezuordnung: Alle | mit | ohne“ für Kacheln, Liste und PDF; der PDF-Export berücksichtigt die Auswahl zusätzlich auf der Serverseite.
 - Zusatzzeilen unter dem PDF-Titel entfernt; Datum und Uhrzeit stehen mittig in der Fusszeile jeder Seite.
 
 ## 1.2.6

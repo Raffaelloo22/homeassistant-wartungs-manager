@@ -208,6 +208,31 @@ class InventoryPdf(unittest.TestCase):
                 self.assertNotIn(request['query'], text)
                 self.assertEqual(request, before, 'Exporting a filtered PDF must not change the supplied rows')
 
+    def test_all_with_and_without_assignment_filter_match_both_inventory_groups(self):
+        items = [item(name='AA zugeordnet'), item(name='CR2016 ohne Zuordnung', devices=[]),
+                 item(kind='material', name='Filter zugeordnet', devices=['Kaffeemaschine']),
+                 item(kind='material', name='Salz ohne Zuordnung', devices=[])]
+        for mode in ('all', 'with', 'without'):
+            with self.subTest(mode=mode):
+                request = payload(items, assignment_filter=mode)
+                before = deepcopy(request)
+                text = read_pdf(build_inventory_pdf(request, WHEN)).pages[0].extract_text()
+                for name in ('AA zugeordnet', 'Filter zugeordnet'):
+                    self.assertEqual(name in text, mode != 'without')
+                for name in ('CR2016 ohne Zuordnung', 'Salz ohne Zuordnung'):
+                    self.assertEqual(name in text, mode != 'with')
+                self.assertIn('Batterien · ' + ('2' if mode == 'all' else '1'), text)
+                self.assertIn('Weitere Verbrauchsmaterialien · ' + ('2' if mode == 'all' else '1'), text)
+                self.assertEqual(request, before)
+        for mode in ('with', 'without'):
+            devices = [] if mode == 'with' else ['Gerät']
+            text = read_pdf(build_inventory_pdf(payload([item(devices=devices)], assignment_filter=mode), WHEN)).pages[0].extract_text()
+            self.assertIn('Keine Artikel', text)
+        # An explicit mode takes precedence over the older boolean API field.
+        text = read_pdf(build_inventory_pdf(payload(items, assigned_only=True, assignment_filter='without'), WHEN)).pages[0].extract_text()
+        self.assertIn('CR2016 ohne Zuordnung', text)
+        self.assertNotIn('AA zugeordnet', text)
+
     def test_assigned_only_can_leave_an_empty_inventory(self):
         request = payload([item(devices=[]), item(kind='material', name='Salz', devices=[])], assigned_only=True)
         before = deepcopy(request)
@@ -229,7 +254,7 @@ class InventoryPdf(unittest.TestCase):
 
     def test_invalid_numbers_types_and_bounds_are_rejected(self):
         invalid = [None, [], {}, dict(items='wrong'), dict(items=[{}]), dict(items=[item()] * 1001),
-                   dict(items=[], assigned_only='true'), dict(items=[], query='q' * 201)]
+                   dict(items=[], assigned_only='true'), dict(items=[], query='q' * 201), *[dict(items=[], assignment_filter=value) for value in ('', 'unknown', None, False, [], {})]]
         for value in (True, '2', float('nan'), float('inf'), -100001, 100001, 10 ** 1000):
             invalid.append(payload([item(quantity=value)]))
         for changes in ({'kind': 'unknown'}, {'name': ''}, {'name': 'x' * 501}, {'name': '\x00'}, {'name': '\ud800'},

@@ -40,6 +40,9 @@ def validate_inventory_pdf(payload):
     assigned_only = payload.get('assigned_only', False)
     if type(assigned_only) is not bool:
         raise ValueError('Ungültiger Zuordnungsfilter im PDF.')
+    assignment = payload.get('assignment_filter', 'with' if assigned_only else 'all')
+    if not isinstance(assignment, str) or assignment not in ('all', 'with', 'without'):
+        raise ValueError('Ungültiger Zuordnungsfilter im PDF.')
     result, references, total_characters = [], 0, 0
     for item in items:
         if not isinstance(item, dict) or item.get('kind') not in ('battery', 'material'):
@@ -59,7 +62,7 @@ def validate_inventory_pdf(payload):
         if references > 10000 or total_characters > 1000000:
             raise ValueError('Die Artikelliste ist für ein PDF zu umfangreich.')
         result.append(dict(kind=item['kind'], name=name, quantity=quantity, unit=unit, devices=devices))
-    return dict(items=result, query=query, assigned_only=assigned_only)
+    return dict(items=result, query=query, assignment_filter=assignment)
 
 
 def _fonts():
@@ -166,8 +169,9 @@ def _logo(canvas):
 def build_inventory_pdf(payload, when):
     """Render one line per material without writes or access to a Home Assistant object."""
     data = validate_inventory_pdf(payload)
-    if data['assigned_only']:
-        data['items'] = [item for item in data['items'] if item['devices']]
+    if data['assignment_filter'] != 'all':
+        assigned = data['assignment_filter'] == 'with'
+        data['items'] = [item for item in data['items'] if bool(item['devices']) == assigned]
     _fonts()
     page_width, page_height = A4
     left, right = 12 * mm, page_width - 12 * mm

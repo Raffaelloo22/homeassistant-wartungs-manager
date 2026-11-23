@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const {fixture}=require('./test_frontend_cleanup.cjs');
 const plain=value=>JSON.parse(JSON.stringify(value));
 function inventory(){
- const f=fixture(),p=f.p;p.tab='batteries';p.inventoryQuery='';p.inventoryLayout='cards';
+ const f=fixture(),p=f.p;p.tab='batteries';p.inventoryQuery='';p.inventoryLayout='cards';p.inventoryAssignment='all';
  p.data.devices.d.name='Zoé Küchensensor';p.data.devices.d.battery_type='AA';p.data.devices.d.battery_quantity=2;
  p.data.devices.linked.name='Mara Türsensor';
  Object.assign(p.data.settings,{
@@ -32,11 +32,17 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
  }
  {
   const {p}=inventory(),counter={textContent:'4 Artikel'},attributes=[{},{}],cards={setAttribute:(key,value)=>attributes[0][key]=value},list={setAttribute:(key,value)=>attributes[1][key]=value};
-  const nodes=new Map([['#inventory-count',counter],['#inventory-layout [data-id="cards"]',cards],['#inventory-layout [data-id="list"]',list]]);
+  const assignmentAttributes={all:{},with:{},without:{}};
+  const nodes=new Map([['#inventory-count',counter],['#inventory-layout [data-id="cards"]',cards],['#inventory-layout [data-id="list"]',list],...Object.entries(assignmentAttributes).map(([mode,state])=>['#inventory-assignment [data-id="'+mode+'"]',{setAttribute:(key,value)=>state[key]=value}])]);
   p.shadowRoot={innerHTML:'Existing toolbar with current search focus',querySelector:selector=>nodes.get(selector)||null};
   const sync=Object.getPrototypeOf(p).syncInventoryToolbar;
   sync.call(p,'1 von 4 Artikeln',true);assert.equal(counter.textContent,'1 von 4 Artikeln');assert.deepEqual(attributes,[{'aria-pressed':'false'},{'aria-pressed':'true'}]);
   sync.call(p,'4 Artikel',false);assert.equal(counter.textContent,'4 Artikel');assert.deepEqual(attributes,[{'aria-pressed':'true'},{'aria-pressed':'false'}]);
+  assert.deepEqual(assignmentAttributes,{all:{'aria-pressed':'true'},with:{'aria-pressed':'false'},without:{'aria-pressed':'false'}});
+  for(const selected of ['with','without','all']){
+   p.inventoryAssignment=selected;sync.call(p,'4 Artikel',false);
+   for(const mode of ['all','with','without'])assert.equal(assignmentAttributes[mode]['aria-pressed'],String(mode===selected));
+  }
   assert.equal(p.shadowRoot.innerHTML,'Existing toolbar with current search focus','updating count and layout state does not rebuild the search toolbar');
   p.shadowRoot.querySelector=()=>null;assert.doesNotThrow(()=>sync.call(p,'0 Artikel',true),'other views do not require inventory controls');
  }
@@ -122,34 +128,47 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   p.data.settings.battery_inventory.CR2450=1;p.data.settings.battery_device_links.CR2450=['missing','deleted'];
   p.data.settings.consumables.orphan={id:'orphan',name:'Verwaistes Material',quantity:1,threshold:1,unit:'Stück',device_ids:['missing','deleted']};
   const before=plain(p.data);let writes=0;p.api=async()=>{writes++;throw Error('No data writes are expected');};
-  p.body();assert(!p.inventoryAssignedOnly);assert.equal(ids(p).length,6);assert.equal(toolbar.at(-1).count,'6 Artikel','the filter is off by default and shows all stock');
-  p.filterChanged('inventoryAssignedOnly',true);assert.deepEqual(ids(p),['AA','CR2032','filter']);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
+  p.body();assert.equal(p.inventoryAssignment,'all');assert.equal(ids(p).length,6);assert.equal(toolbar.at(-1).count,'6 Artikel','all assignments are shown by default');
+  await p.act('inventoryassignment','with');assert.deepEqual(ids(p),['AA','CR2032','filter']);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
   assert(body.innerHTML.includes('AA Batterie')&&body.innerHTML.includes('CR2032 Batterie')&&body.innerHTML.includes('Wasserfilter'));
   assert(!body.innerHTML.includes('CR2450 Batterie')&&!body.innerHTML.includes('Entkalkersalz')&&!body.innerHTML.includes('Verwaistes Material'),'both batteries and materials without a real device are hidden');
   const items=p.inventoryItems();assert.equal(items.find(item=>item.id==='AA').devices.length,1,'battery-type assignments count');assert.equal(items.find(item=>item.id==='CR2032').devices.length,1,'manual battery-device links count');
   assert.equal(items.find(item=>item.id==='CR2450').devices.length,0);assert.equal(items.find(item=>item.id==='orphan').devices.length,0,'missing or deleted IDs never count as an assignment');
-  await p.act('inventorylayout','list');assert.equal(p.inventoryAssignedOnly,true);assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,3);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
+  await p.act('inventorylayout','list');assert.equal(p.inventoryAssignment,'with');assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,3);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
   p.filterChanged('inventoryQuery','mara');assert.deepEqual(ids(p),['CR2032']);assert.equal(toolbar.at(-1).count,'1 von 6 Artikeln');assert(body.innerHTML.includes('CR2032 Batterie')&&!body.innerHTML.includes('Wasserfilter'),'text search and device-assignment filter combine');
   p.filterChanged('inventoryQuery','keller');assert.deepEqual(ids(p),[]);assert.equal(toolbar.at(-1).count,'0 von 6 Artikeln');assert(body.innerHTML.includes('inventory-empty'));assert(!body.innerHTML.includes('role="listitem"'));
-  p.filterChanged('inventoryQuery','');p.draw=()=>{};await p.act('tab','log');await p.act('tab','batteries');p.body();assert.equal(p.inventoryAssignedOnly,true,'the view filter remains set across tab switches');
-  await p.act('inventorylayout','cards');assert.equal(p.inventoryAssignedOnly,true);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
-  p.filterChanged('inventoryAssignedOnly',false);assert.equal(ids(p).length,6);assert.equal(toolbar.at(-1).count,'6 Artikel');assert(body.innerHTML.includes('Verwaistes Material'));
+  p.filterChanged('inventoryQuery','');await p.act('inventoryassignment','without');assert.deepEqual(ids(p),['CR2450','salt','orphan']);assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');
+  assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,3);assert(body.innerHTML.includes('CR2450 Batterie')&&body.innerHTML.includes('Entkalkersalz')&&body.innerHTML.includes('Verwaistes Material'));
+  assert(!body.innerHTML.includes('AA Batterie')&&!body.innerHTML.includes('Wasserfilter'),'without excludes both automatic and manual assignments in both groups');
+  p.filterChanged('inventoryQuery','mara');assert.deepEqual(ids(p),[]);assert.equal(toolbar.at(-1).count,'0 von 6 Artikeln');
+  p.filterChanged('inventoryQuery','keller');assert.deepEqual(ids(p),['salt']);assert.equal(toolbar.at(-1).count,'1 von 6 Artikeln');
+  p.filterChanged('inventoryQuery','');p.draw=()=>{};await p.act('tab','log');await p.act('tab','batteries');p.body();assert.equal(p.inventoryAssignment,'without','the view filter remains set across tab switches');
+  await p.act('inventorylayout','cards');assert.equal(p.inventoryAssignment,'without');assert.equal(toolbar.at(-1).count,'3 von 6 Artikeln');assert(body.innerHTML.includes('CR2450 Batterie')&&body.innerHTML.includes('Verwaistes Material'));assert(!body.innerHTML.includes('Wasserfilter'));
+  await p.act('inventoryassignment','all');assert.equal(ids(p).length,6);assert.equal(toolbar.at(-1).count,'6 Artikel');assert(body.innerHTML.includes('Verwaistes Material'));
   assert.equal(writes,0);assert.deepEqual(plain(p.data),before,'filtering and switching views never rewrite assignments or stock');
-  for(const device of Object.values(p.data.devices))device.deleted_at='2026-11-23';p.filterChanged('inventoryAssignedOnly',true);assert.equal(toolbar.at(-1).count,'0 von 6 Artikeln');assert(body.innerHTML.includes('inventory-empty'));assert(!body.innerHTML.includes('Noch kein Verbrauchsmaterial erfasst'),'a filtered empty result is not mistaken for an empty inventory');
+  for(const device of Object.values(p.data.devices))device.deleted_at='2026-11-23';await p.act('inventoryassignment','with');assert.equal(toolbar.at(-1).count,'0 von 6 Artikeln');assert(body.innerHTML.includes('inventory-empty'));assert(!body.innerHTML.includes('Noch kein Verbrauchsmaterial erfasst'),'a filtered empty result is not mistaken for an empty inventory');
+  await p.act('inventoryassignment','without');assert.equal(ids(p).length,6);assert.equal(toolbar.at(-1).count,'6 von 6 Artikeln');
  }
  {
-  const {p,body,toolbar}=inventory(),nodes=new Map(),checkbox={checked:false};
+  const {p,body,toolbar}=inventory(),nodes=new Map(),listeners={},states={all:{},with:{},without:{}};
   for(const selector of ['#search','#clearsearch','#categoryfilter','#area','#taskperiod'])nodes.set(selector,{value:'',hidden:false,focus(){}});
-  nodes.set('#body',body);nodes.set('#inventory-assigned-only',checkbox);
-  const root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(){}};p.shadowRoot=root;p.renderCompletionUndo=()=>{};const before=plain(p.data);
-  p.draw();assert(root.innerHTML.includes('id="inventory-assigned-only"'));assert(root.innerHTML.includes('Material ohne Gerätezuordnung ausblenden'));
-  assert(root.innerHTML.indexOf('class="toolbar inventory-toolbar"')<root.innerHTML.indexOf('id="inventory-assigned-only"')&&root.innerHTML.indexOf('id="inventory-assigned-only"')<root.innerHTML.indexOf('id="body"'),'filter is outside the changing inventory body and below the search toolbar');
-  assert.equal(typeof checkbox.onchange,'function');checkbox.checked=true;checkbox.onchange({target:checkbox});assert.equal(p.inventoryAssignedOnly,true);assert.equal(toolbar.at(-1).count,'3 von 4 Artikeln');assert(!body.innerHTML.includes('Entkalkersalz'));
-  p.draw();assert(/id="inventory-assigned-only"[^>]*checked/.test(root.innerHTML),'redrawing the view restores the current filter selection');
-  checkbox.checked=false;checkbox.onchange({target:checkbox});assert.equal(p.inventoryAssignedOnly,false);assert.equal(toolbar.at(-1).count,'4 Artikel');assert(body.innerHTML.includes('Entkalkersalz'));
+  nodes.set('#body',body);
+  for(const mode of ['all','with','without'])nodes.set('#inventory-assignment [data-id="'+mode+'"]',{dataset:{action:'inventoryassignment',id:mode},setAttribute:(key,value)=>states[mode][key]=value});
+  const root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(type,handler){listeners[type]=handler;}};p.shadowRoot=root;p.renderCompletionUndo=()=>{};const before=plain(p.data);
+  const nativeSync=Object.getPrototypeOf(p).syncInventoryToolbar;p.syncInventoryToolbar=(count,list)=>{toolbar.push({count,list});nativeSync.call(p,count,list);};
+  p.draw();assert(root.innerHTML.includes('id="inventory-assignment"'));assert(root.innerHTML.includes('Gerätezuordnung:'));assert(root.innerHTML.includes('role="group" aria-labelledby="inventory-assignment-label"'));assert(!root.innerHTML.includes('inventory-assigned-only'));
+  assert(root.innerHTML.indexOf('class="toolbar inventory-toolbar"')<root.innerHTML.indexOf('id="inventory-assignment"')&&root.innerHTML.indexOf('id="inventory-assignment"')<root.innerHTML.indexOf('id="body"'),'filter is outside the changing inventory body and below the search toolbar');
+  for(const [mode,label] of [['all','Alle'],['with','mit'],['without','ohne']])assert(root.innerHTML.includes('data-action="inventoryassignment" data-id="'+mode+'" type="button" aria-pressed="'+(mode==='all')+'">'+label+'</button>'));
+  const markup=root.innerHTML,click=mode=>{const button=nodes.get('#inventory-assignment [data-id="'+mode+'"]');root.activeElement=button;listeners.click({target:{closest:()=>button}});assert.equal(root.activeElement,button,'the selected assignment button keeps focus');assert.equal(root.innerHTML,markup,'filter clicks never rebuild the toolbar or assignment group');};
+  click('with');assert.equal(p.inventoryAssignment,'with');assert.equal(toolbar.at(-1).count,'3 von 4 Artikeln');assert(!body.innerHTML.includes('Entkalkersalz'));assert.equal(states.with['aria-pressed'],'true');assert.equal(states.all['aria-pressed'],'false');
+  const renders=toolbar.length;click('with');assert.equal(toolbar.length,renders,'the selected segment does not redraw twice');
+  click('without');assert.equal(p.inventoryAssignment,'without');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert(body.innerHTML.includes('Entkalkersalz'));assert(!body.innerHTML.includes('Wasserfilter'));assert.equal(states.without['aria-pressed'],'true');assert.equal(states.with['aria-pressed'],'false');
+  p.draw();assert(root.innerHTML.includes('data-id="without" type="button" aria-pressed="true"'),'redrawing the view restores the current filter selection');
+  await p.act('inventoryassignment','invalid');assert.equal(p.inventoryAssignment,'without','unexpected modes do not alter the filter');
+  await p.act('inventoryassignment','all');assert.equal(p.inventoryAssignment,'all');assert.equal(toolbar.at(-1).count,'4 Artikel');assert(body.innerHTML.includes('Entkalkersalz')&&body.innerHTML.includes('Wasserfilter'));assert.equal(states.all['aria-pressed'],'true');assert.equal(states.without['aria-pressed'],'false');
   assert.deepEqual(plain(p.data),before);
-  let dialog;p.inventoryAssignedOnly=true;p.modal=(title,html,save)=>dialog={save};p.change=async()=>{};p.draw=()=>{};
-  await p.act('resetalldata');await dialog.save(new Map([['confirm','on'],['confirmation','DATEN ZURÜCKSETZEN']]));assert.equal(p.inventoryAssignedOnly,false,'resetting data clears the transient assignment filter');
+  let dialog;p.inventoryAssignment='without';p.modal=(title,html,save)=>dialog={save};p.change=async()=>{};p.draw=()=>{};
+  await p.act('resetalldata');await dialog.save(new Map([['confirm','on'],['confirmation','DATEN ZURÜCKSETZEN']]));assert.equal(p.inventoryAssignment,'all','resetting data clears the transient assignment filter');
  }
  {
   const {p}=inventory();
@@ -225,11 +244,13 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   assert.deepEqual(plain(p.data),before,'opening or editing the form does not mutate local data before the API saves');
  }
  {
-  const {p}=inventory(),before=plain(p.data);p.inventoryAssignedOnly=true;
+  const {p}=inventory(),before=plain(p.data);p.inventoryAssignment='with';
   const payload=plain(p.inventoryPdfPayload());assert.deepEqual(payload.items.map(item=>item.name),['AA Batterie','CR2032 Batterie','Wasserfilter'],'PDF uses the same filtered and alphabetically grouped rows as the list');
-  assert.deepEqual(payload.items[0].devices,['Zoé Küchensensor']);assert.equal(payload.items[2].quantity,null,'unknown stocks remain unknown');assert.equal(payload.assigned_only,true);
+  assert.deepEqual(payload.items[0].devices,['Zoé Küchensensor']);assert.equal(payload.items[2].quantity,null,'unknown stocks remain unknown');assert.equal(payload.assignment_filter,'with');assert(!('assigned_only' in payload),'new exports use the three-way assignment filter');
   assert(!JSON.stringify(payload).includes('example.invalid')&&!JSON.stringify(payload).includes('Trocken'),'export contains stock, names and devices rather than shop links or notes');
-  p.inventoryQuery='salz';assert.equal(p.inventoryPdfPayload().items.length,0);p.inventoryAssignedOnly=false;assert.equal(p.inventoryPdfPayload().items[0].quantity,-1.5,'negative and decimal stock values remain exact');p.inventoryQuery='';
+  p.inventoryAssignment='without';assert.deepEqual(plain(p.inventoryPdfPayload()).items.map(item=>item.name),['Entkalkersalz']);assert.equal(p.inventoryPdfPayload().assignment_filter,'without');assert.deepEqual(plain(p.inventoryPdfPayload()).items[0].devices,[]);
+  p.inventoryQuery='salz';assert.equal(p.inventoryPdfPayload().items[0].quantity,-1.5,'negative and decimal stock values remain exact');p.inventoryQuery='mara';assert.equal(p.inventoryPdfPayload().items.length,0,'text search combines with the unassigned PDF filter');p.inventoryAssignment='with';assert.equal(p.inventoryPdfPayload().items[0].name,'CR2032 Batterie');
+  p.inventoryAssignment='all';p.inventoryQuery='';assert.equal(p.inventoryPdfPayload().assignment_filter,'all');assert.equal(p.inventoryPdfPayload().items.length,4,'all includes assigned and unassigned articles in both groups');
   const state={},button={setAttribute:(key,value)=>state[key]=value,removeAttribute:key=>delete state[key]};p.shadowRoot.querySelector=selector=>selector==='[data-action=inventorypdf]'?button:null;let resolve,requests=[],saved=[],notice;
   p.api=(action,request)=>{requests.push({action,request:plain(request)});return new Promise(done=>resolve=done);};p.saveInventoryPdf=result=>saved.push(result);p.notice=message=>notice=message;
   const download=p.act('inventorypdf');assert(button.disabled&&state['aria-busy']==='true');await p.act('inventorypdf');assert.equal(requests.length,1,'repeated clicks share a single read-only PDF request');
