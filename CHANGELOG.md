@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.11
+
+- Gezielte Änderungsmarkierung für ausgewählte Geräte über die Admin-Schnittstelle. Sie verwendet die aktuelle Home-Assistant-Zeit und verändert ausschliesslich den Änderungszeitstempel; Gerätedaten, Erfassungsdatum und Aufgaben bleiben erhalten.
+
 ## 1.2.10
 
 - Gerätefilter «Änderungen» berücksichtigt Erfassungsdatum und letzten Änderungszeitpunkt unabhängig voneinander: gestern erfasst und heute bearbeitet erscheint in beiden Tagesfiltern. Aufgaben und Historie bleiben ausgenommen.

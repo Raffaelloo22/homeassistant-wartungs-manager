@@ -31,7 +31,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.10'
+VERSION = '1.2.11'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -71,6 +71,16 @@ def validate_material_device_ids(data, ids):
     if len(set(ids)) != len(ids):
         raise ValueError('Ein Gerät darf nur einmal zugeordnet werden.')
     return list(ids)
+
+
+def select_devices(data, identities):
+    """Validate a bounded explicit selection without reading other collections."""
+    devices = data['devices']
+    if (not isinstance(identities, list) or not 1 <= len(identities) <= 100
+        or any(not isinstance(identity, str) or identity not in devices for identity in identities)
+        or len(set(identities)) != len(identities)):
+        raise ValueError('Bitte 1 bis 100 unterschiedliche vorhandene Geräte auswählen.')
+    return {identity:devices[identity] for identity in identities}
 
 
 def remove_disabled_battery_shopping(data):
@@ -320,6 +330,10 @@ class Directory:
                 raise ValueError('Der Sensor gehört nicht zum ausgewählten HA-Gerät.')
 
     async def execute(self, action, p):
+        if action == 'get_devices':
+            selected = select_devices(self.data, p.get('device_ids'))
+            return dict(devices=deepcopy(selected), revision=self.data['revision'],
+                        today=dt_util.now().date().isoformat(), timezone=self.hass.config.time_zone)
         if action == 'inventory_pdf':
             return await self.hass.async_add_executor_job(build_inventory_pdf, p, dt_util.now())
         if action == 'get':
@@ -376,7 +390,15 @@ class Directory:
                 device_id = p.get('id') or p.get('value',{}).get('id')
             if device_id and new['devices'].get(device_id,{}).get('deleted_at'):
                 raise ValueError('Gerät ist im Papierkorb. Zuerst wiederherstellen.')
-            if action == 'preferences':
+            if action == 'mark_devices_changed':
+                selected = select_devices(new, p.get('device_ids'))
+                if now.tzinfo is None or now.utcoffset() is None:
+                    raise ValueError('Geräteänderungszeitpunkt benötigt eine Zeitzone.')
+                timestamp = now.isoformat()
+                for device in selected.values():
+                    device['device_updated_at'] = timestamp
+                result.update(updated=len(selected), device_updated_at=timestamp)
+            elif action == 'preferences':
                 value = p.get('value', {})
                 if not isinstance(value, dict):
                     raise ValueError('Ungültige allgemeine Einstellungen.')

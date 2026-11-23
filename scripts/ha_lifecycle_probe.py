@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from base64 import b64decode
+from copy import deepcopy
 from datetime import datetime
 import json
 from pathlib import Path
@@ -203,6 +204,42 @@ async def exercise_device_copy(api, viewer):
     check(await api.action("export") == after, "A viewer cannot execute or replay device duplication")
 
 
+async def exercise_mark_devices_changed(api, viewer):
+    """Only two synthetic devices' update timestamps and the revision may change."""
+    before = await api.action("export")
+    identities = ["fixture-device", "fixture-linked"]
+    selected = await api.action("get_devices", device_ids=identities)
+    check(set(selected) == {"devices", "revision", "today", "timezone"}, "Selected read exposes only its bounded response")
+    check(selected["devices"] == {identity:before["devices"][identity] for identity in identities}
+          and selected["revision"] == before["revision"], "Selected read returns exactly the requested records")
+    check(selected["today"] and selected["timezone"], "Selected read includes date and timezone context")
+    check(await api.action("export") == before, "Selected-device reads do not write or increment revision")
+    await viewer.ws({"type": DOMAIN + "/request", "action": "get_devices", "payload": {
+        "device_ids": identities,
+    }}, expect_error="unauthorized")
+    await api.ws({"type": DOMAIN + "/request", "action": "get_devices", "payload": {
+        "device_ids": ["fixture-device", "missing-device"],
+    }}, expect_error="invalid_request")
+    check(await api.action("export") == before, "Unauthorized or invalid selected reads leave data unchanged")
+    result = await api.action("mark_devices_changed", device_ids=identities, revision=before["revision"])
+    timestamp = result["device_updated_at"]
+    check(result["updated"] == len(identities) and datetime.fromisoformat(timestamp).tzinfo is not None,
+          "Explicit device marking uses one aware server timestamp")
+    expected = deepcopy(before)
+    expected["revision"] += 1
+    for identity in identities:
+        expected["devices"][identity]["device_updated_at"] = timestamp
+    check(await api.action("export") == expected,
+          "Explicit marking changes only selected update timestamps and revision")
+    await viewer.ws({"type": DOMAIN + "/request", "action": "mark_devices_changed", "payload": {
+        "device_ids": identities, "revision": expected["revision"],
+    }}, expect_error="unauthorized")
+    await api.ws({"type": DOMAIN + "/request", "action": "mark_devices_changed", "payload": {
+        "device_ids": identities, "revision": before["revision"],
+    }}, expect_error="invalid_request")
+    check(await api.action("export") == expected, "Unauthorized or stale marking cannot change any data")
+
+
 async def set_shop_urls(api):
     """Exercise both new write APIs after preserving an old package's export."""
     await api.mutate("battery_inventory", shop_urls={"AA": BATTERY_SHOP_URL})
@@ -310,10 +347,14 @@ async def bootstrap(session):
         "revision": revision, "value": {"id": "fixture-device", "name": "Stale update"}}}, expect_error="invalid_request")
     if supports_device_copy(version):
         await exercise_device_copy(api, viewer)
+    device_mark_checked = tuple(map(int, version.split('.'))) >= (1, 2, 11)
+    if device_mark_checked:
+        await exercise_mark_devices_changed(api, viewer)
     expected = await api.action("export")
     await assert_snapshot(api, expected, shop_urls=shop_urls)
     STATE.write_text(json.dumps({"token": token, "refresh_token": grant["refresh_token"],
                                  "entry_id": entry_id, "expected": expected, "shop_urls": shop_urls, "initial_version": version,
+                                 "device_mark_checked": device_mark_checked,
                                  "username": "release-test-owner", "password": password, "helper_entity": helper_entity}))
     print("PASS: fresh install, real config flow, singleton, admin boundary, atomic completion, persisted fixture", flush=True)
 
@@ -339,6 +380,10 @@ async def lifecycle(session, phase):
         if supports_device_copy(version) and DEVICE_COPY_OPERATION not in state["expected"].get("operations", {}):
             viewer = await login_api(session, "release-test-viewer", state["password"])
             await exercise_device_copy(api, viewer)
+        if tuple(map(int, version.split('.'))) >= (1, 2, 11) and not state.get("device_mark_checked"):
+            viewer = await login_api(session, "release-test-viewer", state["password"])
+            await exercise_mark_devices_changed(api, viewer)
+            state["device_mark_checked"] = True
         await api.mutate("preferences", value={"currency": "EUR", "battery_threshold_entity": state["helper_entity"]})
         await set_shop_urls(api)
         state["shop_urls"] = True

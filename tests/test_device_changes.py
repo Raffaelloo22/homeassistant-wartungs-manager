@@ -223,6 +223,90 @@ class DeviceChanges(DeviceChangeFixture, TaskMaterialFixture, DirectoryTestCase)
             await self.call(obj, 'import', records=records)
         self.assertEqual(obj.data, before)
 
+    async def test_selected_device_read_is_bounded_deepcopied_and_never_enters_write_path(self):
+        obj = self.tracked()
+        obj.data['devices']['d']['related_devices'] = [{'id': 'other'}]
+        obj.data['devices']['other'] = {'id': 'other', 'name': 'Nicht angefordert', 'notes': 'Nicht ausgeben'}
+        obj.data['devices']['trash'] = {'id': 'trash', 'name': 'Papierkorb', 'deleted_at': OLD}
+        obj.data['settings']['private'] = 'Nicht ausgeben'
+        obj.data['logs']['l'] = {'id': 'l', 'device_id': 'd', 'kind': 'maintenance', 'event_date': '2026-01-01'}
+        obj.hass = SimpleNamespace(config=SimpleNamespace(time_zone='Europe/Zurich'))
+        def forbidden(*args):
+            self.fail('A selected-device read must never check a write revision or commit')
+        obj.check_revision = forbidden
+        obj.commit = forbidden
+        before = deepcopy(obj.data)
+        result = await self.call(obj, 'get_devices', device_ids=['d', 'trash'], revision=-1)
+        self.assertEqual(set(result), {'devices', 'revision', 'today', 'timezone'})
+        self.assertEqual(result['devices'], {identity: before['devices'][identity] for identity in ['d', 'trash']})
+        self.assertEqual(result['revision'], before['revision'])
+        self.assertEqual(result['today'], '2026-11-23')
+        self.assertEqual(result['timezone'], 'Europe/Zurich')
+        self.assertEqual(obj.data, before)
+        result['devices']['d']['related_devices'].append({'id': 'never-save'})
+        result['devices']['d']['notes'] = 'Nur im Ergebnis geändert'
+        self.assertEqual(obj.data, before, 'Returned nested objects never alias stored device data')
+
+    async def test_selected_device_read_rejects_invalid_selections_without_mutation(self):
+        for ids in (None, 'd', [], ['d', 'd'], ['d', 'missing'], [42], [{}], ['d'] * 101):
+            with self.subTest(ids=ids):
+                obj = self.tracked()
+                before = deepcopy(obj.data)
+                with self.assertRaises(ValueError):
+                    await self.call(obj, 'get_devices', device_ids=ids)
+                self.assertEqual(obj.data, before)
+
+    async def test_explicit_mark_updates_only_selected_metadata_in_every_device_status(self):
+        obj = self.tracked()
+        obj.data['devices'].update({
+            'storage': {'id': 'storage', 'name': 'Lager', 'in_storage': True},
+            'archive': {'id': 'archive', 'name': 'Archiv', 'archived': True, 'archived_at': '2026-01-01'},
+            'trash': {'id': 'trash', 'name': 'Papierkorb', 'deleted_at': OLD},
+            'other': {'id': 'other', 'name': 'Unberührt', 'device_updated_at': OLD},
+        })
+        obj.data['devices']['d']['related_devices'] = [{'id': 'storage'}]
+        obj.data['rules']['r'] = {'id': 'r', 'device_id': 'd', 'name': 'Prüfen', 'kind': 'none'}
+        obj.data['logs']['l'] = {'id': 'l', 'device_id': 'd', 'kind': 'maintenance', 'event_date': '2026-01-01'}
+        obj.data['settings']['battery_inventory'] = {'AA': 4}
+        obj.data['operations']['saved'] = 'l'
+        before = deepcopy(obj.data)
+        ids = ['d', 'storage', 'archive', 'trash']
+        result = await self.call(obj, 'mark_devices_changed', device_ids=ids,
+                                 device_updated_at='1900-01-01T00:00:00+00:00', created_at='forged')
+        self.assertEqual(result, {'updated': 4, 'device_updated_at': NOW.isoformat(), 'revision': before['revision'] + 1})
+        expected = deepcopy(before)
+        expected['revision'] += 1
+        for identity in ids:
+            expected['devices'][identity]['device_updated_at'] = NOW.isoformat()
+        self.assertEqual(obj.data, expected, 'No content, creation date, booking, link or other record is changed')
+
+    async def test_explicit_mark_rejects_invalid_or_stale_selections_atomically(self):
+        for ids in (None, 'd', [], ['d', 'd'], ['d', 'missing'], [42], [{}], ['d'] * 101):
+            with self.subTest(ids=ids):
+                obj = self.tracked()
+                before = deepcopy(obj.data)
+                with self.assertRaises(ValueError):
+                    await self.call(obj, 'mark_devices_changed', device_ids=ids)
+                self.assertEqual(obj.data, before)
+        obj = self.tracked()
+        before = deepcopy(obj.data)
+        with self.assertRaises(ValueError):
+            await self.call(obj, 'mark_devices_changed', device_ids=['d'], revision=-1)
+        self.assertEqual(obj.data, before)
+        with self.assertRaisesRegex(ValueError, 'Zeitzone'):
+            await self.call(obj, 'mark_devices_changed', when=datetime(2026, 11, 23, 12, 0), device_ids=['d'])
+        self.assertEqual(obj.data, before)
+
+    async def test_explicit_mark_commit_failure_does_not_publish_any_timestamp(self):
+        obj = self.tracked()
+        before = deepcopy(obj.data)
+        async def fail(data):
+            raise OSError('disk full')
+        obj.commit = fail
+        with self.assertRaises(OSError):
+            await self.call(obj, 'mark_devices_changed', device_ids=['d'])
+        self.assertEqual(obj.data, before)
+
     async def test_failed_save_does_not_publish_timestamp_or_content(self):
         obj = self.tracked()
         before = deepcopy(obj.data)
