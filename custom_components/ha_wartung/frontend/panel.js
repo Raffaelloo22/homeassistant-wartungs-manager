@@ -543,7 +543,7 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
     for(const [name,value] of Object.entries(values)){if(this.inlineSettingsValue(name,value)===this.inlineSettingsValue(name,saved[name]))delete draft[name];else draft[name]=value;}
     if(Object.keys(draft).length)this.inlineSettingsDrafts[kind]=draft;else delete this.inlineSettingsDrafts[kind];
   }
-  inlineSettingsActions(kind){const message=this.inlineSettingsMessages?.[kind];return '<div class="actions settings-actions"><button type="reset" '+(this.inlineSettingsDrafts?.[kind]?'':'hidden')+'>Verwerfen</button>'+(kind==='schedule'?this.button('digest','Testmeldung anzeigen','','type="button"'):'')+'</div><p class="small'+(message?.error?' errors':'')+'" data-settings-status="'+kind+'" role="status" aria-live="polite">'+E(message?.text||'')+'</p>';}
+  inlineSettingsActions(kind){const message=this.inlineSettingsMessages?.[kind];return '<div class="actions settings-actions"><button type="reset" tabindex="-1" '+(this.inlineSettingsDrafts?.[kind]?'':'hidden')+'>Verwerfen</button>'+(kind==='schedule'?this.button('digest','Testmeldung anzeigen','','type="button"'):'')+'</div><p class="small'+(message?.error?' errors':'')+'" data-settings-status="'+kind+'" role="status" aria-live="polite">'+E(message?.text||'')+'</p>';}
   generalSettingsCard(d){
     const schedule=this.inlineSettingsState('schedule'),frequency=schedule.notification_frequency;
     const weekday=this.field('weekday','Wochentag',schedule.weekday,'text',['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'].map((label,index)=>[index,label])).replace('<label>','<label data-notification-frequency="weekly" '+(frequency==='weekly'?'':'hidden')+'>');
@@ -570,7 +570,7 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
     for(const form of this.shadowRoot.querySelectorAll?.('[data-settings-form]')||[]){
       const kind=form.dataset.settingsForm;
       form.oninput=form.onchange=()=>{this.rememberInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)));this.inlineSettingsMessage(kind);};
-      form.onfocusout=event=>{const name=event.target?.name;if(!name||event.relatedTarget?.type==='reset')return;return this.saveInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)),[name]);};
+      if(!form._wartungSettingsFocusOutBound){form.addEventListener('focusout',event=>{const name=event.target?.name;if(!name||event.relatedTarget?.type==='reset')return;void this.saveInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)),[name]);});form._wartungSettingsFocusOutBound=true;}
       form.onreset=event=>{event.preventDefault();if(this.inlineSettingsQueued||this.pending)return;delete this.inlineSettingsDrafts?.[kind];this.inlineSettingsMessage(kind);this.scheduleBackgroundFlush();};
       form.onsubmit=event=>{event.preventDefault();this.shadowRoot.activeElement?.blur?.();};
     }

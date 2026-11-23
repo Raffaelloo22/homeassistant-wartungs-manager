@@ -8,7 +8,8 @@ function form(kind,values){
  const map=new Map(values),names=kind==='currency'?['currency']:kind==='helper'?['battery_threshold_entity']:['enabled','notification_frequency','weekday','monthday','time'];
  const controls=names.map(name=>({name,type:name==='enabled'?'checkbox':name==='monthday'?'number':'text',disabled:false,matches:()=>true,get value(){return map.get(name)||'';},set value(value){map.set(name,String(value));},get checked(){return map.has(name);},set checked(value){if(value)map.set(name,'on');else map.delete(name);}}));
  const reset={type:'reset',hidden:true,disabled:false},status={},rows=['weekly','monthly'].map(frequency=>({dataset:{notificationFrequency:frequency},hidden:false,querySelectorAll:()=>controls.filter(control=>control.name===(frequency==='weekly'?'weekday':'monthday'))}));
- return {dataset:{settingsForm:kind},values:map,controls,reset,status,rows,querySelectorAll:selector=>selector==='[data-notification-frequency]'?rows:controls,querySelector:selector=>selector==='[type=reset]'?reset:selector==='[data-settings-status]'?status:selector==='[name=notification_frequency]'?controls.find(control=>control.name==='notification_frequency'):null};
+ const element=new EventTarget(),add=element.addEventListener.bind(element);let focusOutBindings=0;element.addEventListener=(type,listener,options)=>{if(type==='focusout')focusOutBindings++;add(type,listener,options);};
+ return Object.assign(element,{dataset:{settingsForm:kind},values:map,controls,reset,status,rows,focusOutBindings:()=>focusOutBindings,querySelectorAll:selector=>selector==='[data-notification-frequency]'?rows:controls,querySelector:selector=>selector==='[type=reset]'?reset:selector==='[data-settings-status]'?status:selector==='[name=notification_frequency]'?controls.find(control=>control.name==='notification_frequency'):null});
 }
 function setup(){
  const {p}=fixture();Object.setPrototypeOf(p,Panel.prototype);p.tab='settings';p.data.timezone='Europe/Zurich';p.data.revision=5;
@@ -24,7 +25,7 @@ function setup(){
   writes.push({action,payload:plain(payload)});Object.assign(backend.settings,payload.value);backend.revision++;return {revision:backend.revision};
  };
  function edit(kind,name,value){const control=forms[kind].controls.find(control=>control.name===name);if(control.type==='checkbox')control.checked=value;else control.value=value;p.shadowRoot.activeElement=control;forms[kind].oninput();return control;}
- function blur(kind,control,next=null){p.shadowRoot.activeElement=next;return forms[kind].onfocusout({target:control,relatedTarget:next});}
+ function blur(kind,control,next=null){p.shadowRoot.activeElement=next;const before=p.inlineSettingsTail,event=new Event('focusout',{bubbles:true});Object.defineProperties(event,{target:{value:control},relatedTarget:{value:next}});forms[kind].dispatchEvent(event);return p.inlineSettingsTail!==before?p.inlineSettingsTail:undefined;}
  p.bindInlineSettingsForms();
  return {p,forms,currency,helper,schedule,input,hint,output,info,backend,writes,edit,blur,draws:()=>draws,flushes:()=>flushes,helperChecks:()=>helperChecks};
 }
@@ -35,10 +36,15 @@ function setup(){
   assert(card.indexOf('data-settings-form="currency"')<card.indexOf('<h3>Batteriewarnung</h3>'));
   assert(card.indexOf('<h3>Batteriewarnung</h3>')<card.indexOf('name="battery_threshold_entity"'),'helper selection belongs under battery warning');
   assert(!card.includes('type="submit"')&&!card.includes('>Speichern<'));
+  assert(card.includes('type="reset" tabindex="-1"'),'discard remains clickable but cannot intercept the normal keyboard tab order');
   assert(card.includes('<h3>Meldung innerhalb Home Assistant</h3>')&&!card.includes('Wochenmeldung'));
   for(const text of ['Täglich','Wöchentlich','Monatlich','name="monthday"','min="1" max="31"','letzten Tag des Monats','Europe/Zurich','Testmeldung anzeigen'])assert(card.includes(text),text);
   assert(all.includes('id="battery-threshold-input"')&&!all.includes('data-action="preferences"')&&!all.includes('data-action="schedule"'));
   assert.equal(writes.length,0);assert.deepEqual(plain(p.data),before,'rendering defaults and binding controls is read-only');
+ }
+ {
+  const {p,forms}=setup();p.bindInlineSettingsForms();p.bindInlineSettingsForms();
+  for(const form of Object.values(forms)){assert.equal(form.focusOutBindings(),1,'each actual focusout event gets exactly one registered listener');assert.equal(form.onfocusout,undefined,'autosave does not rely on a nonstandard DOM0 onfocusout property');}
  }
  {
   const {p,currency,writes,edit,blur,draws}=setup();
