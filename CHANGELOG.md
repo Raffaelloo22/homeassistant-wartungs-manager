@@ -1,5 +1,13 @@
 # Änderungsverlauf
 
+## 1.2.3
+
+- Grauer Hintergrund füllt auch bei kurzen oder leeren Ansichten die gesamte Bildschirmhöhe.
+- Auswahl des Batterieschwellenwert-Helfers unter die Batteriewarnung verschoben.
+- Währung und Meldungseinstellungen speichern geänderte Felder beim Verlassen automatisch.
+- Meldungen täglich, wöchentlich oder monatlich planen; bestehende Wochenpläne bleiben erhalten.
+- Verbrauchsmaterial innerhalb jeder Listengruppe alphabetisch nach der Bezeichnung sortiert.
+
 ## 1.2.2
 
 - Verbrauchsmaterial-Liste in Batterien und weiteres Material gruppiert; die Bezeichnung öffnet direkt das Bearbeitungsfenster.

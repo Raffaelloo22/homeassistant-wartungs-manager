@@ -2,101 +2,107 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const {fixture}=require('./test_frontend_cleanup.cjs');
 const source=fs.readFileSync(path.join(__dirname,'../custom_components/ha_wartung/frontend/panel.js'),'utf8');
 let Panel;
-vm.runInNewContext(source,{URL,HTMLElement:class{},FormData:class{constructor(form){return new Map(form.values);}},customElements:{get:()=>null,define:(_,value)=>Panel=value},crypto:{randomUUID:()=> 'test-id'}});
-const plain=value=>JSON.parse(JSON.stringify(value)),HELPER='input_number.batterien_schwellwert';
+vm.runInNewContext(source,{URL,setTimeout,HTMLElement:class{},FormData:class{constructor(form){return new Map([...form.values].filter(([name])=>!form.controls.find(control=>control.name===name)?.disabled));}},customElements:{get:()=>null,define:(_,value)=>Panel=value},crypto:{randomUUID:()=> 'test-id'}});
+const plain=value=>JSON.parse(JSON.stringify(value)),HELPER='input_number.batterien_schwellwert',OTHER='input_number.other_limit';
 function form(kind,values){
- const reset={type:'reset',disabled:true},controls=[{type:'text',disabled:false},{type:'submit',disabled:false},reset];
- return {dataset:{settingsForm:kind},values:new Map(values),controls,reset,querySelectorAll:()=>controls,querySelector:selector=>selector==='[type=reset]'?reset:null};
+ const map=new Map(values),names=kind==='currency'?['currency']:kind==='helper'?['battery_threshold_entity']:['enabled','notification_frequency','weekday','monthday','time'];
+ const controls=names.map(name=>({name,type:name==='enabled'?'checkbox':name==='monthday'?'number':'text',disabled:false,matches:()=>true,get value(){return map.get(name)||'';},set value(value){map.set(name,String(value));},get checked(){return map.has(name);},set checked(value){if(value)map.set(name,'on');else map.delete(name);}}));
+ const reset={type:'reset',hidden:true,disabled:false},status={},rows=['weekly','monthly'].map(frequency=>({dataset:{notificationFrequency:frequency},hidden:false,querySelectorAll:()=>controls.filter(control=>control.name===(frequency==='weekly'?'weekday':'monthday'))}));
+ return {dataset:{settingsForm:kind},values:map,controls,reset,status,rows,querySelectorAll:selector=>selector==='[data-notification-frequency]'?rows:controls,querySelector:selector=>selector==='[type=reset]'?reset:selector==='[data-settings-status]'?status:selector==='[name=notification_frequency]'?controls.find(control=>control.name==='notification_frequency'):null};
 }
 function setup(){
- const {p}=fixture();Object.setPrototypeOf(p,Panel.prototype);p.tab='settings';p.data.timezone='Europe/Zurich';
+ const {p}=fixture();Object.setPrototypeOf(p,Panel.prototype);p.tab='settings';p.data.timezone='Europe/Zurich';p.data.revision=5;
  p.data.settings={...p.data.settings,currency:'CHF',enabled:false,weekday:0,time:'09:00'};
- p._hass={states:{[HELPER]:{state:'20',attributes:{min:0,max:100,step:1}}}};
- const preferences=form('preferences',[['currency','CHF'],['battery_threshold_entity',HELPER]]),schedule=form('schedule',[['weekday','0'],['time','09:00']]);
- const forms=[preferences,schedule],statuses={preferences:{},schedule:{}};let draws=0,flushes=0;
- p.shadowRoot={activeElement:null,querySelectorAll:selector=>selector==='[data-settings-form]'?forms:[],querySelector:selector=>{
-  const m=selector.match(/^\[data-settings-status="(preferences|schedule)"\]$/);return m?statuses[m[1]]:null;
- }};
- p.draw=()=>{draws++;p.bindInlineSettingsForms();};p.scheduleBackgroundFlush=()=>flushes++;
- return {p,preferences,schedule,statuses,draws:()=>draws,flushes:()=>flushes};
+ p._hass={states:{[HELPER]:{state:'20',attributes:{min:0,max:100,step:1}},[OTHER]:{state:'35',attributes:{min:0,max:100,step:1}}}};
+ const currency=form('currency',[['currency','CHF']]),helper=form('helper',[['battery_threshold_entity',HELPER]]),schedule=form('schedule',[['notification_frequency','weekly'],['weekday','0'],['monthday','1'],['time','09:00']]);
+ const forms={currency,helper,schedule},input={value:'20',disabled:false},hint={},output={},info={};let draws=0,flushes=0,helperChecks=0;
+ p.shadowRoot={activeElement:null,querySelectorAll:selector=>selector==='[data-settings-form]'?Object.values(forms):[],querySelector:selector=>selector==='#battery-threshold-input'?input:selector==='#battery-threshold-hint'?hint:selector==='#battery-threshold-output'?output:selector==='#battery-threshold-helper'?info:null};
+ p.draw=()=>draws++;p.scheduleBackgroundFlush=()=>flushes++;p.ensureBatteryThresholdHelper=async()=>helperChecks++;
+ const backend=plain(p.data),writes=[];p.api=async(action,payload)=>{
+  if(action==='get')return plain(backend);
+  assert(['preferences','settings'].includes(action));assert.equal(payload.revision,backend.revision,'each queued write uses the current server revision');
+  writes.push({action,payload:plain(payload)});Object.assign(backend.settings,payload.value);backend.revision++;return {revision:backend.revision};
+ };
+ function edit(kind,name,value){const control=forms[kind].controls.find(control=>control.name===name);if(control.type==='checkbox')control.checked=value;else control.value=value;p.shadowRoot.activeElement=control;forms[kind].oninput();return control;}
+ function blur(kind,control,next=null){p.shadowRoot.activeElement=next;return forms[kind].onfocusout({target:control,relatedTarget:next});}
+ p.bindInlineSettingsForms();
+ return {p,forms,currency,helper,schedule,input,hint,output,info,backend,writes,edit,blur,draws:()=>draws,flushes:()=>flushes,helperChecks:()=>helperChecks};
 }
 (async()=>{
  {
-  const {p}=setup(),before=plain(p.data);let writes=0;p.api=async()=>{writes++;};
-  const card=p.generalSettingsCard(p.data),all=p.settingsView(p.data);
-  assert(card.includes('<h2>Allgemeine Einstellungen</h2>'));
-  assert.equal((card.match(/data-settings-form=/g)||[]).length,2);
-  assert(card.includes('name="currency"')&&card.includes('name="battery_threshold_entity"'));
-  assert(card.includes('id="battery-threshold-input"')&&card.includes('Gespeichert im Home-Assistant-Helfer'));
-  assert(card.includes('name="enabled"')&&card.includes('name="weekday"')&&card.includes('name="time"'));
-  assert(card.includes('Europe/Zurich')&&card.includes('Testmeldung anzeigen'));
-  assert.equal((all.match(/Wochenmeldung innerhalb Home Assistant/g)||[]).length,1,'weekly controls are part of the first card only');
-  assert(!all.includes('data-action="preferences"')&&!all.includes('data-action="schedule"'));
-  assert(!source.includes("action==='preferences'")&&!source.includes("action==='schedule'"),'obsolete popup routes are removed');
-  assert.equal(writes,0);assert.deepEqual(plain(p.data),before,'rendering inline settings never stores defaults or changes the helper');
+  const {p,writes}=setup(),before=plain(p.data),card=p.generalSettingsCard(p.data),all=p.settingsView(p.data);
+  assert(card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/data-settings-form=/g)||[]).length,3);
+  assert(card.indexOf('data-settings-form="currency"')<card.indexOf('<h3>Batteriewarnung</h3>'));
+  assert(card.indexOf('<h3>Batteriewarnung</h3>')<card.indexOf('name="battery_threshold_entity"'),'helper selection belongs under battery warning');
+  assert(!card.includes('type="submit"')&&!card.includes('>Speichern<'));
+  assert(card.includes('<h3>Meldung innerhalb Home Assistant</h3>')&&!card.includes('Wochenmeldung'));
+  for(const text of ['Täglich','Wöchentlich','Monatlich','name="monthday"','min="1" max="31"','letzten Tag des Monats','Europe/Zurich','Testmeldung anzeigen'])assert(card.includes(text),text);
+  assert(all.includes('id="battery-threshold-input"')&&!all.includes('data-action="preferences"')&&!all.includes('data-action="schedule"'));
+  assert.equal(writes.length,0);assert.deepEqual(plain(p.data),before,'rendering defaults and binding controls is read-only');
  }
  {
-  const {p,preferences,schedule,draws,flushes}=setup();p.bindInlineSettingsForms();
-  assert.equal(p.backgroundBusy(),false);assert(preferences.reset.disabled);
-  preferences.values.set('currency','EUR');preferences.oninput();
-  assert.equal(p.inlineSettingsDrafts.preferences.currency,'EUR');assert.equal(preferences.reset.disabled,false);
-  assert.equal(p.backgroundBusy(),true,'an unsaved setting protects the whole form even after the field loses focus');
-  p.tab='devices';assert.equal(p.backgroundBusy(),false,'drafts do not stop polling in other views');p.tab='settings';
-  schedule.values.set('weekday','6');schedule.values.set('time','22:45');schedule.values.set('enabled','on');schedule.onchange();
-  assert.equal(p.inlineSettingsDrafts.schedule.enabled,true);assert.equal(p.inlineSettingsDrafts.schedule.weekday,'6');
-  let prevented=false;preferences.onreset({preventDefault(){prevented=true;}});
-  assert(prevented);assert(!p.inlineSettingsDrafts.preferences);assert(p.inlineSettingsDrafts.schedule);
-  assert.equal(draws(),1);assert.equal(flushes(),1);assert.equal(p.backgroundBusy(),true,'discarding one form preserves the other unsaved draft');
-  schedule.onreset({preventDefault(){}});assert.equal(p.backgroundBusy(),false);
+  const {p,currency,writes,edit,blur,draws}=setup();
+  assert.equal(p.backgroundBusy(),false);const control=edit('currency','currency','CHF');
+  assert.equal(p.backgroundBusy(),true,'focused fields still protect background updates');await blur('currency',control);
+  assert.equal(writes.length,0,'leaving an unchanged field or switching tabs never writes');assert.equal(draws(),0);assert.equal(p.backgroundBusy(),false);
+  const next={name:'next-field'};edit('currency','currency',' eur ');await blur('currency',control,next);
+  assert.deepEqual(writes,[{action:'preferences',payload:{revision:5,value:{currency:'EUR'}}}]);
+  assert.equal(p.data.settings.currency,'EUR');assert.equal(currency.controls[0].value,'EUR');assert.equal(p.shadowRoot.activeElement,next);
+  assert.equal(draws(),0,'automatic saves do not rebuild the form or steal the next click');assert(currency.controls.every(control=>!control.disabled));
  }
  {
-  const {p,statuses}=setup(),writes=[];p.inlineSettingsDrafts={schedule:{enabled:true,weekday:'6',time:'22:45'}};
-  p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});
-  const values=p.inlineSettingsValues('preferences',new Map([['currency',' eur '],['battery_threshold_entity',HELPER]]));
-  assert.equal(await p.saveInlineSettings('preferences',values),true);
-  assert.deepEqual(writes,[{action:'preferences',payload:{value:{currency:'EUR',battery_threshold_entity:HELPER}}}]);
-  assert(!p.inlineSettingsDrafts.preferences);assert.equal(p.inlineSettingsDrafts.schedule.time,'22:45');
-  const card=p.generalSettingsCard(p.data);assert(card.includes('value="6" selected')&&card.includes('value="22:45"')&&card.includes('name="enabled" type="checkbox" checked'));
-  assert.equal(statuses.preferences.textContent,'Gespeichert.');
-  assert.equal(await p.saveInlineSettings('schedule',{enabled:false,weekday:'0',time:'00:00'}),true);
-  assert.deepEqual(writes[1],{action:'settings',payload:{value:{enabled:false,weekday:0,time:'00:00'}}});
-  assert.deepEqual(plain(p.inlineSettingsDrafts),{});
+  const {p,schedule,writes,edit,blur}=setup(),frequency=schedule.controls.find(control=>control.name==='notification_frequency');
+  assert.equal(schedule.rows.find(row=>row.dataset.notificationFrequency==='weekly').hidden,false);assert.equal(schedule.rows.find(row=>row.dataset.notificationFrequency==='monthly').hidden,true);
+  edit('schedule','notification_frequency','daily');assert.equal(writes.length,0,'a selection alone does not save before blur');assert(schedule.rows.every(row=>row.hidden));await blur('schedule',frequency);
+  let control=edit('schedule','time','10:15');await blur('schedule',control);
+  edit('schedule','notification_frequency','monthly');await blur('schedule',frequency);assert.equal(schedule.rows[1].hidden,false);assert.equal(schedule.rows[0].hidden,true);
+  control=edit('schedule','monthday','31');await blur('schedule',control);
+  edit('schedule','notification_frequency','weekly');await blur('schedule',frequency);
+  assert.deepEqual(writes.map(write=>write.payload.value),[{notification_frequency:'daily'},{time:'10:15'},{notification_frequency:'monthly'},{monthday:31},{notification_frequency:'weekly'}]);
+  assert.equal(p.data.settings.monthday,31,'switching modes preserves the other mode’s settings');assert.equal(schedule.rows[0].hidden,false);assert.equal(schedule.rows[1].hidden,true);
+  control=edit('schedule','enabled',true);await blur('schedule',control);assert.deepEqual(writes.at(-1).payload.value,{enabled:true});
  }
  {
-  const {p,statuses,preferences}=setup(),before=plain(p.data);
-  p.change=async()=>{throw Error('Ungültige Währung. Bitte CHF oder EUR eingeben.');};
-  const values={currency:'ungueltig',battery_threshold_entity:HELPER};
-  assert.equal(await p.saveInlineSettings('preferences',values),false);
-  assert.deepEqual(plain(p.inlineSettingsDrafts.preferences),values,'validation and save errors retain every entered value');
-  assert(p.generalSettingsCard(p.data).includes('value="ungueltig"'));assert(statuses.preferences.className.includes('errors'));
-  assert(statuses.preferences.textContent.includes('Ungültige Währung'));assert.equal(preferences.controls[0].disabled,false);
-  assert.equal(p.backgroundBusy(),true);assert.deepEqual(plain(p.data),before);
+  const {p,backend,schedule,writes,edit,blur}=setup();delete p.data.settings.weekday;delete backend.settings.weekday;p.data.settings.notification_frequency=backend.settings.notification_frequency='daily';schedule.controls.find(control=>control.name==='notification_frequency').value='daily';p.bindInlineSettingsForms();
+  const control=edit('schedule','notification_frequency','weekly');await blur('schedule',control);
+  assert.deepEqual(writes[0].payload.value,{notification_frequency:'weekly',weekday:0},'explicitly choosing weekly records the visible weekday if the old data had none');
  }
  {
-  const {p,preferences,schedule}=setup(),writes=[];let release;
-  p.change=async(action,payload)=>{writes.push({action,payload:plain(payload)});await new Promise(resolve=>release=resolve);};
-  const save=p.saveInlineSettings('preferences',{currency:'USD',battery_threshold_entity:HELPER});
-  assert.equal(p.inlineSettingsSaving,true);assert(preferences.controls.every(control=>control.disabled));assert(schedule.controls.every(control=>control.disabled));
-  assert.equal(await p.saveInlineSettings('schedule',{enabled:true,weekday:'1',time:'10:00'}),false);assert.equal(writes.length,1,'rapid submits cannot double-write either API');
-  let services=0;p._hass.callService=async()=>services++;await p.saveBatteryThreshold({value:'30'});assert.equal(services,0,'the slider cannot race with a helper-selection save');
-  preferences.onreset({preventDefault(){}});assert(p.inlineSettingsDrafts.preferences,'discard is ignored while the save is pending');
-  release();assert.equal(await save,true);assert.equal(p.inlineSettingsSaving,false);assert.equal(preferences.controls[0].disabled,false);
+  const {p,currency,schedule,writes,edit,blur}=setup(),api=p.api;let release;
+  p.api=async(action,payload)=>{if(action==='preferences')await new Promise(resolve=>release=resolve);return api(action,payload);};
+  const first=blur('currency',edit('currency','currency','EUR'));await Promise.resolve();await Promise.resolve();
+  const enabled=edit('schedule','enabled',true),second=blur('schedule',enabled),time=edit('schedule','time','08:30'),third=blur('schedule',time);
+  assert(currency.controls.every(control=>!control.disabled)&&schedule.controls.filter(control=>control.name!=='monthday').every(control=>!control.disabled),'saving leaves subsequent fields usable');
+  assert.equal(p.pending,true);release();assert.deepEqual(await Promise.all([first,second,third]),[true,true,true]);
+  assert.deepEqual(writes.map(write=>write.payload.revision),[5,6,7]);assert.deepEqual(writes.map(write=>write.payload.value),[{currency:'EUR'},{enabled:true},{time:'08:30'}]);assert.equal(p.data.settings.time,'08:30');
  }
  {
-  const {p,preferences}=setup(),input={value:'20',disabled:false},hint={},output={};let services=0;
-  const originalQuery=p.shadowRoot.querySelector;
-  p.shadowRoot.querySelector=selector=>selector==='#battery-threshold-input'?input:selector==='#battery-threshold-hint'?hint:selector==='#battery-threshold-output'?output:originalQuery(selector);
-  p._hass.callService=async()=>services++;
-  p.bindInlineSettingsForms();preferences.values.set('battery_threshold_entity','input_number.other_limit');preferences.onchange();
-  assert.equal(p.pendingBatteryHelperSelection(),true);assert.equal(input.disabled,true);
-  assert(hint.textContent.includes('zuerst speichern oder verwerfen'));assert(p.batteryThresholdEditor().includes('aria-describedby="battery-threshold-hint" disabled'));
-  await p.saveBatteryThreshold({value:'30'});assert.equal(services,0,'an unsaved helper selection cannot change the old helper');
-  preferences.values.set('battery_threshold_entity',HELPER);preferences.onchange();
-  assert.equal(p.pendingBatteryHelperSelection(),false);assert.equal(input.disabled,false);assert(hint.textContent.includes('Batterieaufgaben erscheinen unter 20'));
-  preferences.values.set('battery_threshold_entity','input_number.other_limit');preferences.onchange();
-  preferences.onreset({preventDefault(){}});p.syncBatteryThresholdControl();
-  assert.equal(p.pendingBatteryHelperSelection(),false);assert.equal(input.disabled,false);assert(!p.batteryThresholdHint().includes('zuerst'));
-  assert.equal(services,0);
+  const {p,currency,writes,edit,blur}=setup(),api=p.api;let firstRelease,secondRelease;
+  p.api=async(action,payload)=>{if(action==='preferences')await new Promise(resolve=>{if(payload.value.currency==='EUR')firstRelease=resolve;else secondRelease=resolve;});return api(action,payload);};
+  const control=edit('currency','currency','EUR'),first=blur('currency',control);await Promise.resolve();await Promise.resolve();
+  edit('currency','currency','USD');const second=blur('currency',control);firstRelease();await first;await Promise.resolve();
+  assert.equal(p.inlineSettingsDrafts.currency.currency,'USD','an earlier response must retain newer input in the same field');assert.equal(currency.controls[0].value,'USD');
+  secondRelease();await second;assert.equal(p.data.settings.currency,'USD');assert(!p.inlineSettingsDrafts.currency);assert.equal(writes.length,2);
  }
- console.log('PASS: Inline-Einstellungen und Wochenmeldung speichern getrennt; Formulare und Slider bleiben geschützt, Entwürfe bei Fehlern/Refresh erhalten und Verwerfen verändert keine Daten.');
+ {
+  const {p,currency,writes,edit,blur}=setup(),api=p.api;p.api=async(action,payload)=>{if(action==='preferences')throw Error('Ungültige Währung.');return api(action,payload);};
+  const control=edit('currency','currency','falsch');assert.equal(await blur('currency',control),false);
+  assert.equal(p.inlineSettingsDrafts.currency.currency,'falsch');assert.equal(currency.controls[0].value,'falsch');assert(currency.status.className.includes('errors'));assert(currency.status.textContent.includes('Ungültige Währung'));assert.equal(p.backgroundBusy(),true);
+  const requestCount=writes.length;assert.equal(blur('currency',control,currency.reset),undefined,'clicking discard skips the preceding autosave blur');currency.onreset({preventDefault(){}});
+  assert(!p.inlineSettingsDrafts.currency);assert.equal(currency.controls[0].value,'CHF');assert.equal(writes.length,requestCount,'discard never commits the rejected draft');assert.equal(p.backgroundBusy(),false);
+ }
+ {
+  const {p,helper,input,hint,info,writes,edit,blur}=setup();let services=0;p._hass.callService=async()=>services++;
+  const control=edit('helper','battery_threshold_entity',OTHER);assert.equal(p.pendingBatteryHelperSelection(),true);assert.equal(input.disabled,true);assert(hint.textContent.includes('Verlasse das Feld'));
+  await p.saveBatteryThreshold({value:'30'});assert.equal(services,0,'pending helper selection cannot write to the old helper');await blur('helper',control);
+  assert.deepEqual(writes[0].payload.value,{battery_threshold_entity:OTHER});assert.equal(input.disabled,false);assert.equal(input.value,'35');assert(info.innerHTML.includes(OTHER));
+  edit('helper','battery_threshold_entity',HELPER);blur('helper',control,helper.reset);helper.onreset({preventDefault(){}});assert.equal(input.disabled,false);assert.equal(control.value,OTHER);assert.equal(writes.length,1);
+ }
+ {
+  const {p,backend,writes,edit,blur}=setup(),api=p.api;let conflict=true;
+  p.api=async(action,payload)=>{if(action==='preferences'&&conflict){conflict=false;backend.settings.currency='EUR';backend.revision++;throw Error('Daten wurden geändert');}return api(action,payload);};
+  const control=edit('currency','currency','USD');assert.equal(await blur('currency',control),false);assert.equal(p.data.revision,6);assert.equal(p.inlineSettingsDrafts.currency.currency,'USD');assert(p.inlineSettingsMessages.currency.text.includes('Verlasse das Feld erneut'));
+  assert.equal(await blur('currency',control),true);assert.deepEqual(writes[0].payload,{revision:6,value:{currency:'USD'}});
+ }
+ console.log('PASS: Einstellungen speichern nur geänderte Felder beim Verlassen; Queue/Revision/Fokus, Fehlereingaben und Verwerfen bleiben sicher, Helfer und drei Meldungsintervalle korrekt.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

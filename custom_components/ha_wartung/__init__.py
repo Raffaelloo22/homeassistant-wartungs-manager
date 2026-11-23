@@ -29,7 +29,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.2'
+VERSION = '1.2.3'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -261,14 +261,12 @@ class Directory:
         async with self.tick_lock:
             now = dt_util.now()
             settings = self.data.get('settings', {})
-            week = now.strftime('%G-%V')
-            if (settings.get('enabled') and now.weekday() == settings.get('weekday')
-                and now.strftime('%H:%M') >= settings.get('time','09:00')
-                and settings.get('last_week') != week):
+            period = engine.notification_due_period(settings, now)
+            if period and settings.get(period[0]) != period[1]:
                 await self.digest()
                 async with self.lock:
                     new = deepcopy(self.data)
-                    new['settings']['last_week'] = week
+                    new['settings'][period[0]] = period[1]
                     new['revision'] += 1
                     await self.commit(new)
 
@@ -823,15 +821,23 @@ class Directory:
                     linked[kind] = validate_material_device_ids(new, ids)
                 settings['battery_device_links'] = linked
             elif action == 'settings':
-                value = p['value']
-                settings = dict(new.get('settings',{}), **{k:value[k] for k in ('enabled','weekday','time') if k in value})
-                if type(settings.get('enabled')) is not bool:
-                    raise ValueError('Aktivierung muss ein Wahrheitswert sein.')
-                if type(settings.get('weekday')) is not int or not 0 <= settings['weekday'] <= 6:
-                    raise ValueError('Ungültiger Wochentag.')
-                from datetime import time
-                time.fromisoformat(settings['time'])
-                settings['time'] = settings['time'][:5]
+                value = p.get('value', {})
+                if not isinstance(value, dict):
+                    raise ValueError('Ungültige Meldungseinstellungen.')
+                fields = ('enabled', 'notification_frequency', 'weekday', 'monthday', 'time')
+                settings = dict(new.get('settings', {}), **{key:value[key] for key in fields if key in value})
+                if 'time' in value:
+                    from datetime import time
+                    if not isinstance(value['time'], str):
+                        raise ValueError('Die Uhrzeit muss im Format HH:MM angegeben werden.')
+                    try:
+                        clock = time.fromisoformat(value['time'])
+                    except ValueError as error:
+                        raise ValueError('Die Uhrzeit muss im Format HH:MM angegeben werden.') from error
+                    if clock.tzinfo is not None:
+                        raise ValueError('Die Uhrzeit wird in der Home-Assistant-Zeitzone angegeben.')
+                    settings['time'] = clock.strftime('%H:%M')
+                engine.validate_notification_settings(settings)
                 new['settings'] = settings
             elif action == 'import':
                 new, counts = engine.import_new(new,p['records'])

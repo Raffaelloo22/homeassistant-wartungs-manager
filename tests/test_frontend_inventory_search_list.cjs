@@ -107,6 +107,16 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
  }
 
  {
+  const {p,body}=inventory();p.inventoryLayout='list';
+  for(const [id,name] of [['z','Zebra'],['ten','Artikel 10'],['two','artikel 2'],['accent','Äpfel']])p.data.settings.consumables[id]={id,name,unit:'Stück',quantity:1,threshold:1,device_ids:[]};
+  const before=plain(p.data),original=p.inventoryItems().filter(item=>item.kind==='material').map(item=>item.name);
+  p.body();
+  const names=[...body.innerHTML.matchAll(/<button\b[^>]*data-action="material"[^>]*class="inventory-list-name"[^>]*>([^<]*)<\/button>/g)].map(match=>match[1]);
+  assert.deepEqual(names,['Äpfel','artikel 2','Artikel 10','Entkalkersalz','Wasserfilter','Zebra'],'list materials sort alphabetically with natural numbers and German accents');
+  assert.deepEqual(p.inventoryItems().filter(item=>item.kind==='material').map(item=>item.name),original,'sorting the list does not reorder card data');
+  assert.deepEqual(plain(p.data),before,'alphabetical presentation never rewrites inventory records');
+ }
+ {
   const {p}=inventory();
   for(const url of ['https://example.invalid/path?x=1&y=2','http://example.invalid:8080/products','https://münchen.example/path','http://127.0.0.1:8123/products','https://[::1]:8123/']){
    assert.equal(p.safeShopUrl(url),url,url);

@@ -23,7 +23,7 @@ Configure rules and links once: Wartungs-Manager calculates due dates, displays 
 | **Purchase dates** | A dated purchase/order event fills an empty device purchase date while preserving an existing date. |
 | **Weekly summary** | An optional scheduled Home Assistant persistent notification summarizes stored maintenance tasks and open purchases, even while the dashboard is closed. |
 
-Completions, consumption and purchases need your confirmation. Purchase reminders do not place orders. Percentage-based battery warnings are calculated in the open dashboard and are not part of the background weekly summary.
+Completions, consumption and purchases need your confirmation. Purchase reminders do not place orders. Percentage-based battery warnings are calculated in the open dashboard and are not part of the background summary.
 
 ## Screenshots
 
@@ -71,16 +71,16 @@ The first four screenshots show a configured installation. Additional images lab
 - Keep manual device records or link them to Home Assistant devices. Import selected Home Assistant device types with a preview and duplicate checks.
 - Plan tasks by one-off date, interval, annual season, rotating work steps, sensor value, device indication or without a due date. A rotation can link a different material to each step. Record completion dates, costs and notes, and edit the resulting history.
 - Link tasks to batteries or other consumables. Confirm stock deductions on completion; quantities for batteries come from the device record.
-- Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact stock list showing quantity, name and associated devices. The list groups batteries and other materials; clicking an article name opens its edit dialog. Other actions remain in the card view; removal is available in the item’s edit dialog.
+- Search batteries and other consumables instantly by name, notes, unit, shop address or linked device, with accent-insensitive matching and a clear button. Switch between cards and a compact stock list showing quantity, name and associated devices. The list groups batteries and other materials and sorts each group alphabetically; clicking an article name opens its edit dialog. Other actions remain in the card view; removal is available in the item’s edit dialog.
 - Add an optional shop URL to a battery type or material. Its **Shop** link opens in a new tab from the inventory or the associated purchase reminder.
 - Track stock, individual purchase thresholds, purchase requests, notes and the devices that use each item. Battery usage lists include the required quantity per device; linked purchase notes are shared with the material.
 - Find low batteries in the task view using a shared Home Assistant threshold helper.
 - Organize devices as active, stored, archived or in the trash; link related devices in both directions, and edit or reorder categories and event types. Stored and archived devices retain history without active reminders.
 - Run a read-only data check for missing HA links, invalid material assignments, incomplete battery details and possible duplicates.
 - Undo a recent completion for 30 seconds, including its associated stock deduction. History corrections update linked maintenance state; removing a recorded consumption returns its quantity to current stock.
-- Export and import the directory as JSON. An optional weekly summary appears as a Home Assistant persistent notification.
+- Export and import the directory as JSON. An optional daily, weekly or monthly summary appears as a Home Assistant persistent notification.
 
-The **Log** view combines text search with an immediate year filter based on the event date or period. General settings, battery warning controls and the weekly message settings are available directly in the first settings card.
+The **Log** view combines text search with an immediate year filter based on the event date or period. General settings, battery warning controls and the notification schedule settings are available directly in the first settings card. Changed fields save automatically on blur. Choose a daily, weekly or monthly schedule; months without the chosen day use their last day.
 
 The dashboard has **Aufgaben** (tasks), **Geräte** (devices), **Verbrauchsmaterial** (consumables), **Log** and **Einstellungen** (settings). On phones, the tabs use icons and consumables use compact cards with a stock button and an actions menu.
 
@@ -131,7 +131,7 @@ Battery warnings use `input_number.batterien_schwellwert` by default. The dashbo
 
 A valid battery percentage triggers a warning only when it is **strictly below** the threshold. An unknown, unavailable or invalid battery level does not trigger a percentage warning. If the helper is absent or unavailable, the dashboard identifies the fallback threshold of 20%. Archived, stored and trashed devices are excluded, as are devices whose battery warning is disabled.
 
-These percentage warnings are calculated in the dashboard. They are not separate persisted maintenance rules and are currently **not included in the weekly summary**. Recording a battery change does not change the physical sensor's reported percentage.
+These percentage warnings are calculated in the dashboard. They are not separate persisted maintenance rules and are currently **not included in the background summary**. Recording a battery change does not change the physical sensor's reported percentage.
 
 A **Messwert** task uses a selected Home Assistant sensor and a numerical threshold. The form shows the current sensor value and unit. Unknown, unavailable, restored or non-numerical values remain pending. After completion, a newer Home Assistant report is required before the task can become due again. A Home Assistant state report is not proof of a new physical measurement.
 

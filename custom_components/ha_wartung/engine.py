@@ -504,6 +504,37 @@ def import_new(data, records):
     return remove_evernote_sources(output), counts
 
 
+def validate_notification_settings(settings):
+    """Validate only present schedule fields, without filling old exports."""
+    if not isinstance(settings, dict):
+        raise ValueError('Ungültige Meldungseinstellungen.')
+    if 'enabled' in settings and type(settings['enabled']) is not bool:
+        raise ValueError('Aktivierung muss ein Wahrheitswert sein.')
+    if 'notification_frequency' in settings and settings['notification_frequency'] not in ('daily', 'weekly', 'monthly'):
+        raise ValueError('Ungültiges Meldungsintervall.')
+    if 'weekday' in settings and (type(settings['weekday']) is not int or not 0 <= settings['weekday'] <= 6):
+        raise ValueError('Ungültiger Wochentag.')
+    if 'monthday' in settings and (type(settings['monthday']) is not int or not 1 <= settings['monthday'] <= 31):
+        raise ValueError('Der Monatstag muss zwischen 1 und 31 liegen.')
+    if 'time' in settings and (not isinstance(settings['time'], str)
+                              or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', settings['time'])):
+        raise ValueError('Die Uhrzeit muss im Format HH:MM angegeben werden.')
+
+
+def notification_due_period(settings, now):
+    """Return the due period and its dedupe key using Home Assistant local time."""
+    if not settings.get('enabled') or now.strftime('%H:%M') < settings.get('time', '09:00'):
+        return None
+    frequency = settings.get('notification_frequency', 'weekly')
+    if frequency == 'daily':
+        return 'last_notification_day', now.date().isoformat()
+    if frequency == 'weekly' and now.weekday() == settings.get('weekday'):
+        return 'last_week', now.strftime('%G-%V')
+    if frequency == 'monthly' and now.day == min(settings.get('monthday', 1), monthrange(now.year, now.month)[1]):
+        return 'last_notification_month', now.strftime('%Y-%m')
+    return None
+
+
 def _validate_inventory_settings(settings):
     """Validate present inventory fields without changing compatible old exports."""
     if not isinstance(settings, dict):
@@ -562,6 +593,7 @@ def validate_data(data):
             raise ValueError('Ungültige Datensammlung: ' + key)
     _validate_inventory_settings(data.get('settings', {}))
     settings = data.get('settings', {})
+    validate_notification_settings(settings)
     if 'currency' in settings and (not isinstance(settings['currency'], str) or not re.fullmatch(r'[A-Z]{3}', settings['currency'])):
         raise ValueError('Währung benötigt einen dreistelligen Code, zum Beispiel CHF oder EUR.')
     if 'battery_threshold_entity' in settings and (not isinstance(settings['battery_threshold_entity'], str) or not re.fullmatch(r'input_number\.[a-z0-9_]+', settings['battery_threshold_entity'])):

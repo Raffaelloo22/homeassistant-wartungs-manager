@@ -21,7 +21,7 @@ Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligk
 | **Nachkaufaufträge erstellen** | Nach einer Bestandsänderung liegt ein Artikel auf oder unter seiner individuellen Nachkaufgrenze | Unter **Aufgaben → Nachkaufen** erscheint der passende Artikel. Nach einem eingetragenen Einkauf steigt sein Bestand; reicht er wieder über die Grenze, ist der automatische Nachkauf erledigt. |
 | **Geräteinformationen übernehmen** | Du bestätigst eine Sammelerfassung ausgewählter HA-Gerätetypen | Bezeichnung, Hersteller, Modell und HA-Verknüpfung werden übernommen; der Gerätetyp bestimmt eine passende Kategorie. Bestehende Zuordnungen und mögliche Dubletten werden erkannt. Bereiche folgen der HA-Gerätezuordnung. |
 | **Kaufdatum ergänzen** | Ein Kauf- oder Bestellereignis mit genauem Datum wird in der Historie erfasst | Ein noch leeres Kaufdatum der Geräteakte wird ergänzt. Ein vorhandenes Kaufdatum bleibt erhalten. |
-| **Wochenmeldung zusammenstellen** | Der eingestellte Wochentag und die Uhrzeit sind erreicht | Eine optionale Home-Assistant-Mitteilung fasst offene Wartungen und Nachkäufe zusammen. Dafür muss das Dashboard nicht geöffnet sein. |
+| **Meldung zusammenstellen** | Der tägliche, wöchentliche oder monatliche Termin ist erreicht | Eine optionale Home-Assistant-Mitteilung fasst offene Wartungen und Nachkäufe zusammen. Dafür muss das Dashboard nicht geöffnet sein. |
 
 Die tatsächliche Erledigung, verbrauchte Mengen und Einkäufe werden von dir bestätigt. Ein Nachkaufauftrag ist eine Einkaufserinnerung; er bestellt keine Ware. Prozentbasierte Batteriewarnungen werden im geöffneten Dashboard berechnet. Gespeicherte Wartungsregeln und Bestandsbuchungen verarbeitet die Integration in Home Assistant.
 
@@ -104,7 +104,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 ### Verbrauchsmaterial und Nachkaufen
 
 - Mit der sofortigen Textsuche Batterien und weitere Materialien nach Bezeichnung, Notizen, Einheit, Shop-Adresse oder zugeordnetem Gerät finden. Akzente und Umlaute werden wie in den anderen Suchfeldern berücksichtigt; **×** leert die Suche.
-- Zwischen **Kacheln** und einer kompakten **Lagerliste** mit Menge, Bezeichnung und zugeordneten Geräten wechseln. Die Lagerliste gruppiert Batterien und weitere Materialien; ein Klick auf die Bezeichnung öffnet das Bearbeitungsfenster. Weitere Aktionen bleiben in der Kachelansicht verfügbar; „Entfernen“ steht im jeweiligen Bearbeitungsfenster. Die Suche gilt für beide Darstellungen.
+- Zwischen **Kacheln** und einer kompakten **Lagerliste** mit Menge, Bezeichnung und zugeordneten Geräten wechseln. Die Lagerliste gruppiert Batterien und weitere Materialien und sortiert innerhalb jeder Gruppe alphabetisch; ein Klick auf die Bezeichnung öffnet das Bearbeitungsfenster. Weitere Aktionen bleiben in der Kachelansicht verfügbar; „Entfernen“ steht im jeweiligen Bearbeitungsfenster. Die Suche gilt für beide Darstellungen.
 - Pro Batterietyp oder Material einen optionalen **Shop-Link** hinterlegen. **Shop** öffnet die hinterlegte Adresse in einem neuen Tab – direkt beim Artikel oder beim zugehörigen Nachkaufauftrag.
 - Batterietypen, Filter, Salz, Reinigungs- und Entkalkungsmittel oder andere eigene Artikel verwalten – jeweils mit Bestand, Nachkaufgrenze, Notizen und Gerätezuordnung.
 - Bei Batterien Typ und Anzahl pro Gerät getrennt erfassen. Geräte erscheinen anhand ihres Batterietyps automatisch in der Verwendungsliste; zusätzliche manuelle Zuordnungen sind möglich. **Geräte anzeigen** nennt die benötigte Batterieanzahl je Gerät. Fest verbaute Akkus werden nicht als Wechselbatterievorrat geführt.
@@ -124,7 +124,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 
 - Kategorien und Ereignisarten hinzufügen, umbenennen, entfernen und per Drag-and-drop sortieren; die jeweilige Anzahl zugehöriger Einträge sehen.
 - Batterieschwelle per Schieberegler direkt mit einem Home-Assistant-Helfer synchronisieren. Den Standardhelfer prüft und erstellt das geöffnete Dashboard bei Bedarf selbst; alternativ kann ein vorhandener Helfer gewählt werden.
-- Währung, Helferauswahl, Batterieschwelle und Wochenmeldung direkt in der ersten Kachel **Allgemeine Einstellungen** verwalten. Allgemeine Angaben und Wochenmeldung separat speichern; ungespeicherte Eingaben bleiben bei Hintergrundaktualisierungen erhalten. Eine Testmeldung lässt sich weiterhin auslösen.
+- Währung, Helferauswahl, Batterieschwelle und Meldungen direkt in der ersten Kachel **Allgemeine Einstellungen** verwalten. Geänderte Felder speichern beim Verlassen automatisch; bei Fehlern bleiben die Eingaben erhalten. Meldungen täglich, wöchentlich oder monatlich mit passender Uhrzeit und Wochentag bzw. Monatstag planen; bei kurzen Monaten gilt für fehlende Monatstage der letzte Tag. Eine Testmeldung lässt sich weiterhin auslösen.
 - **Datenprüfung** aufrufen: fehlende HA-Geräte und Sensoren, unvollständige Batterieangaben, ungültige Materialzuordnungen, verwaiste Verknüpfungen und mögliche Dubletten mit Links zu den betroffenen Akten prüfen. Die Prüfung verändert keine Daten.
 - Verzeichnis inklusive Einstellungen als JSON exportieren und nach ausdrücklicher Bestätigung wiederherstellen. **Daten zurücksetzen** entfernt Gerätedaten, Aufgaben und Vorräte; Kategorien, Ereignisarten und allgemeine Einstellungen bleiben erhalten.
 
@@ -177,7 +177,7 @@ Die Batteriewarnung verwendet standardmässig `input_number.batterien_schwellwer
 
 Eine Warnung erscheint bei gültigem Batteriestand strikt unter der Schwelle. Unbekannte und ungültige Werte lösen keine Prozentwarnung aus. Bei nicht verfügbarem Helfer gilt ein gekennzeichneter Ersatzwert von 20%. Lager-, Archiv- und Papierkorb-Geräte sowie Geräte mit deaktivierter Batteriewarnung sind ausgeschlossen.
 
-Prozentwarnungen werden in der Oberfläche berechnet. Sie sind keine separat gespeicherten Wartungsregeln und derzeit **nicht Teil der Wochenmeldung**. Ein erfasster Batteriewechsel verändert den vom Gerät gemeldeten Prozentwert nicht.
+Prozentwarnungen werden in der Oberfläche berechnet. Sie sind keine separat gespeicherten Wartungsregeln und derzeit **nicht Teil der Hintergrundmeldung**. Ein erfasster Batteriewechsel verändert den vom Gerät gemeldeten Prozentwert nicht.
 
 Für **Messwert** genügen Sensor und Schwelle. Das Formular zeigt den aktuellen Wert samt Einheit. Unbekannte, nicht verfügbare, wiederhergestellte oder nicht numerische Werte bleiben ausstehend. Nach einer Erledigung wird eine neuere HA-Meldung abgewartet. Diese bestätigt keinen neuen physischen Messvorgang.
 
@@ -204,7 +204,7 @@ Wer die Wartungsdaten entfernen möchte, exportiert vorher benötigte Angaben un
 - **Batteriewarnung bleibt:** Entscheidend ist die gemeldete Prozentzahl. Nach einem Wechsel muss der Sensor einen neuen Wert melden.
 - **Duplikate bei der Sammelerfassung:** Die Vorschau prüfen. Vorhandene HA-Zuordnungen und Namenskonflikte werden übersprungen; anders benannte manuelle Akten selbst beurteilen.
 - **Bestand unerwartet:** Materialzuordnung und Verbrauchsmenge der Aufgabe prüfen. Negative Bestände zeigen bei weiterem Verbrauchsmaterial fehlende Mengen an.
-- **Wochenmeldung:** Sie erscheint als persistente Mitteilung in Home Assistant und wird nicht per E-Mail oder mobilem Push versendet. Ihre Vorschau umfasst sieben Tage; der Filter **Bald** auf dem Dashboard umfasst 14 Tage.
+- **Meldung innerhalb Home Assistant:** Sie erscheint als persistente Mitteilung in Home Assistant und wird nicht per E-Mail oder mobilem Push versendet. Ihre Vorschau umfasst sieben Tage; der Filter **Bald** auf dem Dashboard umfasst 14 Tage.
 
 Fehler und Wünsche über [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) melden. Versionen, reproduzierbare Schritte und anonymisierte Screenshots oder Logs angeben. Keine Exporte, Zugriffstoken oder privaten Haushaltsangaben veröffentlichen. Sicherheitshinweise stehen in [SECURITY.md](SECURITY.md), Entwicklungsinformationen in [CONTRIBUTING.md](CONTRIBUTING.md).
 

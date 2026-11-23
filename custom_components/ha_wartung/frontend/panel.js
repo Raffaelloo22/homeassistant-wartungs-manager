@@ -176,7 +176,7 @@ class WartungPanel extends HTMLElement {
     this.syncInventoryToolbar(count,list);
     let html=list?'':'<p class="sub inventory-intro" style="max-width:none">Verbrauchsmaterial: Neue Artikel starten mit Bestand 1. Negative Bestände zeigen fehlende Mengen an.</p>';
     if(list){
-      for(const [kind,label] of [['battery','Batterien'],['material','Weitere Verbrauchsmaterialien']]){const group=rows.filter(item=>item.kind===kind);if(group.length)html+='<section class="inventory-list-group"><h3>'+label+'<span class="tag count-tag">'+group.length+'</span></h3><div class="inventory-list" role="list" aria-label="'+label+'">'+group.map(item=>this.inventoryListRow(item)).join('')+'</div></section>';}
+      for(const [kind,label] of [['battery','Batterien'],['material','Weitere Verbrauchsmaterialien']]){const group=rows.filter(item=>item.kind===kind).sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base',numeric:true}));if(group.length)html+='<section class="inventory-list-group"><h3>'+label+'<span class="tag count-tag">'+group.length+'</span></h3><div class="inventory-list" role="list" aria-label="'+label+'">'+group.map(item=>this.inventoryListRow(item)).join('')+'</div></section>';}
     }else{
       html+='<div class="inventory-add-actions">'+this.button('addbatterytype','Batterietyp hinzufügen')+'</div><div class="device-grid">'+rows.filter(item=>item.kind==='battery').map(item=>this.inventoryCard(item)).join('')+'</div>';
       html+='<div class="inventory-add-actions">'+this.button('material','Weiteres Verbrauchsmaterial hinzufügen')+'</div><div class="device-grid">'+rows.filter(item=>item.kind==='material').map(item=>this.inventoryCard(item)).join('')+'</div>';
@@ -207,7 +207,7 @@ class WartungPanel extends HTMLElement {
     if(!this.data)return;this.categoryFilter=this.resolveCategory(this.categoryFilter);this.syncLogYearFilter();
     const root=this.shadowRoot;
     root.innerHTML=`<style>
-      :host{display:flex;flex-direction:column;height:100%;min-height:0;color:var(--primary-text-color,#203646);background:var(--primary-background-color,#f5f8fa);font-family:var(--primary-font-family,Arial,sans-serif);font-size:14px;line-height:1.4}
+      :host{display:flex;flex-direction:column;height:100%;min-height:100vh;min-height:100dvh;color:var(--primary-text-color,#203646);background:var(--primary-background-color,#f5f8fa);font-family:var(--primary-font-family,Arial,sans-serif);font-size:14px;line-height:1.4}
       *{box-sizing:border-box}header{flex:none;padding:12px 20px 0;background:var(--card-background-color,#fff);border-bottom:1px solid var(--divider-color,#d7e0e5)}h1{font-size:22px;line-height:1.25;margin:0;font-weight:650}h2{font-size:17px;margin:16px 0 8px}h3{font-size:15px;margin:10px 0 6px}p{line-height:1.45;margin:6px 0;max-width:78ch}.sub{color:var(--secondary-text-color,#526875)}nav{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
       button{font:inherit;font-size:13px;line-height:1.25;cursor:pointer;border:1px solid var(--divider-color,#b9cbd4);border-radius:5px;padding:5px 9px;min-height:28px;background:var(--card-background-color,#fff);color:inherit}button:hover{border-color:var(--primary-color,#24788c);background:var(--secondary-background-color,#edf4f6)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--primary-color,#24788c);outline-offset:2px}button[aria-current="page"],.primary{background:var(--primary-color,#24788c);color:var(--text-primary-color,#fff);border-color:var(--primary-color,#24788c)}nav button{border:0;border-radius:5px 5px 0 0;padding:7px 10px;min-height:32px}
       .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 20px}.toolbar .searchbox{display:flex;align-items:center;gap:4px;flex:1;min-width:160px;max-width:640px}.searchbox input{flex:1;min-width:0;width:100%}.searchbox button{flex:none;font-size:21px;line-height:1;padding:3px 8px}.searchbox input::-webkit-search-cancel-button{display:none}.main{flex:1;min-height:0;overflow:auto}#body{padding:0 20px 24px}input,select,textarea{font:inherit;color:inherit;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#b9cbd4);border-radius:5px;padding:6px 8px;max-width:100%;min-height:32px}textarea{min-height:72px;resize:vertical}label{display:flex;flex-direction:column;gap:4px;margin:8px 0}label.check{flex-direction:row;align-items:center}.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}.split>section{min-width:0}.record-layout{grid-template-columns:minmax(260px,.8fr) minmax(0,1.4fr)}
@@ -519,43 +519,83 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
   }
   currency(){return this.data?.settings?.currency||this.data?.currency||'CHF';}
   batteryThresholdEntity(){return this.data?.settings?.battery_threshold_entity||'input_number.batterien_schwellwert';}
-  pendingBatteryHelperSelection(){const entity=this.inlineSettingsDrafts?.preferences?.battery_threshold_entity;return typeof entity==='string'&&entity!==this.batteryThresholdEntity();}
-  batteryThresholdHint(threshold=this.batteryThreshold()){return this.pendingBatteryHelperSelection()?'Bitte die geänderte Helfer-Auswahl zuerst speichern oder verwerfen. Der Schieberegler bleibt bis dahin gesperrt.':threshold.valid?'Batterieaufgaben erscheinen unter '+threshold.value+' Prozent. Wird mit Home Assistant synchronisiert.':'Schwellenwert-Helfer nicht verfügbar. Ersatzwert: 20 %. Bearbeiten ist erst wieder möglich, wenn der Helfer verfügbar ist.';}
-  preferencesFields(value={}){
+  pendingBatteryHelperSelection(){const entity=this.inlineSettingsDrafts?.helper?.battery_threshold_entity;return typeof entity==='string'&&entity!==this.batteryThresholdEntity();}
+  batteryThresholdHint(threshold=this.batteryThreshold()){return this.pendingBatteryHelperSelection()?'Verlasse das Feld, um die geänderte Helfer-Auswahl zu speichern, oder verwirf sie. Der Schieberegler bleibt bis dahin gesperrt.':threshold.valid?'Batterieaufgaben erscheinen unter '+threshold.value+' Prozent. Wird mit Home Assistant synchronisiert.':'Schwellenwert-Helfer nicht verfügbar. Ersatzwert: 20 %. Bearbeiten ist erst wieder möglich, wenn der Helfer verfügbar ist.';}
+  preferencesFields(value={},field='all'){
     const entity=value.battery_threshold_entity??this.batteryThresholdEntity(),options=[['input_number.batterien_schwellwert','Standard: Batterien Schwellwert (automatisch anlegen)'],...Object.entries(this._hass?.states||{}).filter(([id])=>id.startsWith('input_number.')&&id!=='input_number.batterien_schwellwert').map(([id,state])=>[id,(state.attributes?.friendly_name||id)+' · '+id])];
     if(!options.some(([id])=>id===entity))options.push([entity,entity+' (derzeit nicht verfügbar)']);
-    return this.field('currency','Währung (z. B. CHF, EUR, USD)',value.currency??this.currency())+this.field('battery_threshold_entity','Helfer für den Batterieschwellenwert',entity,'text',options)+'<p class="small sub">Währungsänderungen ändern die Anzeige, rechnen vorhandene Beträge aber nicht um. Ein vorhandener Helfer behält seinen Wert; nur der Standardhelfer wird bei Bedarf mit 20 % angelegt.</p>';
+    return (field!=='helper'?this.field('currency','Währung (z. B. CHF, EUR, USD)',value.currency??this.currency()):'')+(field!=='currency'?this.field('battery_threshold_entity','Helfer für den Batterieschwellenwert',entity,'text',options):'')+(field==='all'?'<p class="small sub">Währungsänderungen ändern die Anzeige, rechnen vorhandene Beträge aber nicht um. Ein vorhandener Helfer behält seinen Wert; nur der Standardhelfer wird bei Bedarf mit 20 % angelegt.</p>':'');
   }
+  inlineSettingsSavedValues(kind){
+    if(kind==='currency')return {currency:this.currency()};
+    if(kind==='helper')return {battery_threshold_entity:this.batteryThresholdEntity()};
+    const settings=this.data.settings||{};return {enabled:!!settings.enabled,notification_frequency:settings.notification_frequency||'weekly',weekday:settings.weekday??0,monthday:settings.monthday??1,time:settings.time||'09:00'};
+  }
+  inlineSettingsState(kind){return {...this.inlineSettingsSavedValues(kind),...this.inlineSettingsDrafts?.[kind]};}
+  inlineSettingsValue(name,value){return name==='currency'?String(value??'').trim().toUpperCase():name==='enabled'?!!value:['weekday','monthday'].includes(name)?Number(value):String(value??'');}
   inlineSettingsValues(kind,form){
-    return kind==='preferences'?{currency:String(form.get('currency')??''),battery_threshold_entity:String(form.get('battery_threshold_entity')??'')}:{enabled:form.has('enabled'),weekday:String(form.get('weekday')??''),time:String(form.get('time')??'')};
+    if(kind==='currency')return {currency:String(form.get('currency')??'')};
+    if(kind==='helper')return {battery_threshold_entity:String(form.get('battery_threshold_entity')??'')};
+    const current=this.inlineSettingsState(kind);return {enabled:form.has('enabled'),notification_frequency:String(form.get('notification_frequency')??current.notification_frequency),weekday:String(form.get('weekday')??current.weekday),monthday:String(form.get('monthday')??current.monthday),time:String(form.get('time')??'')};
   }
-  inlineSettingsActions(kind){return '<div class="actions settings-actions"><button type="submit" class="primary">Speichern</button><button type="reset" '+(this.inlineSettingsDrafts?.[kind]?'':'disabled')+'>Verwerfen</button>'+(kind==='schedule'?this.button('digest','Testmeldung anzeigen','','type="button"'):'')+'</div><p class="small" data-settings-status="'+kind+'" role="status" aria-live="polite"></p>';}
+  rememberInlineSettings(kind,values){
+    const saved=this.inlineSettingsSavedValues(kind);this.inlineSettingsDrafts||={};const draft=this.inlineSettingsDrafts[kind]||{};
+    for(const [name,value] of Object.entries(values)){if(this.inlineSettingsValue(name,value)===this.inlineSettingsValue(name,saved[name]))delete draft[name];else draft[name]=value;}
+    if(Object.keys(draft).length)this.inlineSettingsDrafts[kind]=draft;else delete this.inlineSettingsDrafts[kind];
+  }
+  inlineSettingsActions(kind){const message=this.inlineSettingsMessages?.[kind];return '<div class="actions settings-actions"><button type="reset" '+(this.inlineSettingsDrafts?.[kind]?'':'hidden')+'>Verwerfen</button>'+(kind==='schedule'?this.button('digest','Testmeldung anzeigen','','type="button"'):'')+'</div><p class="small'+(message?.error?' errors':'')+'" data-settings-status="'+kind+'" role="status" aria-live="polite">'+E(message?.text||'')+'</p>';}
   generalSettingsCard(d){
-    const schedule=this.inlineSettingsDrafts?.schedule||d.settings||{};
-    return '<section class="settings-card"><h2>Allgemeine Einstellungen</h2><form data-settings-form="preferences" aria-label="Allgemeine Angaben"><div class="fields">'+this.preferencesFields(this.inlineSettingsDrafts?.preferences||{})+'</div>'+this.inlineSettingsActions('preferences')+'</form><section class="settings-subsection">'+this.batteryThresholdEditor().replace('<h2>Batteriewarnung</h2>','<h3>Batteriewarnung</h3>')+'</section><section class="settings-subsection"><h3>Wochenmeldung innerhalb Home Assistant</h3><form data-settings-form="schedule" aria-label="Wochenmeldung"><label class="check"><input name="enabled" type="checkbox" '+(schedule.enabled?'checked':'')+'>Wöchentlich in Home Assistant anzeigen</label><div class="fields">'+this.field('weekday','Wochentag',schedule.weekday??0,'text',['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'].map((label,index)=>[index,label]))+this.field('time','Lokale Uhrzeit',schedule.time||'09:00','time')+'</div><p class="small sub">Zeitzone: '+E(d.timezone||'Home Assistant')+'. Die Wochenmeldung erscheint als Benachrichtigung innerhalb von Home Assistant.</p>'+this.inlineSettingsActions('schedule')+'</form></section></section>';
+    const schedule=this.inlineSettingsState('schedule'),frequency=schedule.notification_frequency;
+    const weekday=this.field('weekday','Wochentag',schedule.weekday,'text',['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'].map((label,index)=>[index,label])).replace('<label>','<label data-notification-frequency="weekly" '+(frequency==='weekly'?'':'hidden')+'>');
+    const monthday=this.field('monthday','Tag im Monat',schedule.monthday,'number').replace('step="any" min="0"','step="1" min="1" max="31"').replace('<label>','<label data-notification-frequency="monthly" '+(frequency==='monthly'?'':'hidden')+'>');
+    return '<section class="settings-card"><h2>Allgemeine Einstellungen</h2><p class="small sub">Änderungen werden beim Verlassen eines Feldes gespeichert.</p><form data-settings-form="currency" aria-label="Währung"><div class="fields">'+this.preferencesFields(this.inlineSettingsState('currency'),'currency')+'</div><p class="small sub">Währungsänderungen ändern die Anzeige, rechnen vorhandene Beträge aber nicht um.</p>'+this.inlineSettingsActions('currency')+'</form><section class="settings-subsection"><h3>Batteriewarnung</h3>'+this.batteryThresholdEditor().replace('<h2>Batteriewarnung</h2>','')+'<form data-settings-form="helper" aria-label="Batteriewarnung Helfer"><div class="fields">'+this.preferencesFields(this.inlineSettingsState('helper'),'helper')+'</div>'+this.inlineSettingsActions('helper')+'</form></section><section class="settings-subsection"><h3>Meldung innerhalb Home Assistant</h3><form data-settings-form="schedule" aria-label="Meldung"><label class="check"><input name="enabled" type="checkbox" '+(schedule.enabled?'checked':'')+'>Meldung in Home Assistant anzeigen</label><div class="fields">'+this.field('notification_frequency','Häufigkeit',frequency,'text',[['daily','Täglich'],['weekly','Wöchentlich'],['monthly','Monatlich']])+weekday+monthday+this.field('time','Lokale Uhrzeit',schedule.time,'time')+'</div><p class="small sub" data-notification-frequency="monthly" '+(frequency==='monthly'?'':'hidden')+'>In kürzeren Monaten wird die Meldung am letzten Tag des Monats angezeigt.</p><p class="small sub">Zeitzone: '+E(d.timezone||'Home Assistant')+'. Die Meldung erscheint als Benachrichtigung innerhalb von Home Assistant.</p>'+this.inlineSettingsActions('schedule')+'</form></section></section>';
   }
+  syncNotificationFrequency(form){
+    if(form.dataset.settingsForm!=='schedule')return;
+    const frequency=form.querySelector('[name=notification_frequency]')?.value||this.inlineSettingsState('schedule').notification_frequency;
+    for(const row of form.querySelectorAll('[data-notification-frequency]')){row.hidden=row.dataset.notificationFrequency!==frequency;for(const control of row.querySelectorAll('input,select'))control.disabled=row.hidden;}
+  }
+  syncInlineSettingsControls(){
+    for(const form of this.shadowRoot.querySelectorAll?.('[data-settings-form]')||[]){
+      const kind=form.dataset.settingsForm,state=this.inlineSettingsState(kind);
+      for(const control of form.querySelectorAll('input,select'))if(this.shadowRoot.activeElement!==control&&!Object.hasOwn(this.inlineSettingsDrafts?.[kind]||{},control.name)){if(control.type==='checkbox')control.checked=!!state[control.name];else control.value=String(state[control.name]??'');}
+      const discard=form.querySelector('[type=reset]');if(discard){discard.hidden=!this.inlineSettingsDrafts?.[kind];discard.disabled=!!(this.inlineSettingsQueued||this.pending);}
+      const status=form.querySelector('[data-settings-status]'),message=this.inlineSettingsMessages?.[kind];if(status){status.className=message?.error?'small errors':'small';status.textContent=message?.text||'';}
+      this.syncNotificationFrequency(form);
+    }
+    this.syncBatteryThresholdControl();
+  }
+  inlineSettingsMessage(kind,text='',error=false){this.inlineSettingsMessages||={};this.inlineSettingsMessages[kind]={text,error};this.syncInlineSettingsControls();}
   bindInlineSettingsForms(){
     for(const form of this.shadowRoot.querySelectorAll?.('[data-settings-form]')||[]){
       const kind=form.dataset.settingsForm;
-      for(const control of form.querySelectorAll('input,select,button'))control.disabled=!!(this.inlineSettingsSaving||this.pending)||(control.type==='reset'&&!this.inlineSettingsDrafts?.[kind]);
-      form.oninput=form.onchange=()=>{this.inlineSettingsDrafts||={};this.inlineSettingsDrafts[kind]=this.inlineSettingsValues(kind,new FormData(form));this.syncBatteryThresholdControl();const discard=form.querySelector('[type=reset]');if(discard)discard.disabled=false;};
-      form.onreset=event=>{event.preventDefault();if(this.inlineSettingsSaving||this.pending)return;delete this.inlineSettingsDrafts?.[kind];this.draw();this.scheduleBackgroundFlush();};
-      form.onsubmit=event=>{event.preventDefault();return this.saveInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)));};
+      form.oninput=form.onchange=()=>{this.rememberInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)));this.inlineSettingsMessage(kind);};
+      form.onfocusout=event=>{const name=event.target?.name;if(!name||event.relatedTarget?.type==='reset')return;return this.saveInlineSettings(kind,this.inlineSettingsValues(kind,new FormData(form)),[name]);};
+      form.onreset=event=>{event.preventDefault();if(this.inlineSettingsQueued||this.pending)return;delete this.inlineSettingsDrafts?.[kind];this.inlineSettingsMessage(kind);this.scheduleBackgroundFlush();};
+      form.onsubmit=event=>{event.preventDefault();this.shadowRoot.activeElement?.blur?.();};
     }
+    this.syncInlineSettingsControls();
   }
-  async saveInlineSettings(kind,values){
-    if(this.inlineSettingsSaving||this.pending||this.thresholdSaving)return false;
-    this.inlineSettingsDrafts||={};this.inlineSettingsDrafts[kind]=values;this.inlineSettingsSaving=true;
-    this.bindInlineSettingsForms();this.syncBatteryThresholdControl();
-    let error='';
-    try{
-      const value=kind==='preferences'?{currency:String(values.currency||'').trim().toUpperCase(),battery_threshold_entity:values.battery_threshold_entity}:{enabled:!!values.enabled,weekday:Number(values.weekday),time:values.time};
-      await this.change(kind==='preferences'?'preferences':'settings',{value});delete this.inlineSettingsDrafts[kind];
-    }catch(cause){error=errorMessage(cause);}
-    finally{
-      this.inlineSettingsSaving=false;this.draw();const status=this.shadowRoot.querySelector('[data-settings-status="'+kind+'"]');if(status){status.className=error?'small errors':'small';status.textContent=error||'Gespeichert.';}this.scheduleBackgroundFlush();
-    }
-    return !error;
+  saveInlineSettings(kind,values,fields=Object.keys(values)){
+    this.rememberInlineSettings(kind,values);const requested=Object.fromEntries(fields.filter(name=>Object.hasOwn(values,name)).map(name=>[name,values[name]]));
+    this.inlineSettingsQueued=(this.inlineSettingsQueued||0)+1;this.syncInlineSettingsControls();
+    const run=async()=>{
+      while(this.pending||this.thresholdSaving)await new Promise(resolve=>setTimeout(resolve,30));
+      const saved=this.inlineSettingsSavedValues(kind),value=Object.fromEntries(Object.entries(requested).map(([name,entry])=>[name,this.inlineSettingsValue(name,entry)]).filter(([name,entry])=>entry!==this.inlineSettingsValue(name,saved[name])));
+      if(kind==='schedule'&&value.notification_frequency==='weekly'&&this.data.settings?.weekday==null)value.weekday=Number(this.inlineSettingsState('schedule').weekday);
+      if(!Object.keys(value).length){this.rememberInlineSettings(kind,this.inlineSettingsDrafts?.[kind]||{});this.inlineSettingsMessage(kind);return true;}
+      this.inlineSettingsSaving=true;this.pending=true;this.inlineSettingsMessage(kind,'Wird gespeichert …');
+      try{
+        await this.api(kind==='schedule'?'settings':'preferences',{revision:this.data.revision,value});this.data=await this.api('get');
+        this.rememberInlineSettings(kind,this.inlineSettingsDrafts?.[kind]||{});this.inlineSettingsMessage(kind,'Gespeichert.');if(this.tab!=='settings')this.body();
+        if(kind==='helper')void this.ensureBatteryThresholdHelper();
+        return true;
+      }catch(cause){
+        let message=errorMessage(cause);if(/Zwischenzeitlich geändert|Daten wurden geändert/.test(message)){try{this.data=await this.api('get');}catch{}message='Die Daten wurden zwischenzeitlich geändert. Deine Eingaben bleiben erhalten. Verlasse das Feld erneut, um es nochmals zu speichern.';}
+        this.inlineSettingsMessage(kind,message,true);return false;
+      }finally{this.pending=false;this.inlineSettingsSaving=false;}
+    };
+    const result=(this.inlineSettingsTail||Promise.resolve()).then(run,run).finally(()=>{this.inlineSettingsQueued--;this.syncInlineSettingsControls();this.scheduleBackgroundFlush();});this.inlineSettingsTail=result.catch(()=>false);return result;
   }
   settingsView(d){return `${this.generalSettingsCard(d)}<details class="settings-card settings-categories"><summary>Kategorien bearbeiten <span class="tag count-tag">${this.categories().length}</span></summary>${this.categoryEditor().replace('<h2>Kategorien</h2>','')}</details>${this.eventTypesSettings()}${this.dataCheckSettings()}<section class="settings-card"><h2>Daten exportieren und importieren</h2><p>Alle Wartungsdaten als JSON-Datei speichern oder aus einer solchen Datei wiederherstellen: Geräte inklusive Archiv und Papierkorb, Aufgaben, Historie, Verbrauchsmaterial und Einstellungen.</p><div class="actions settings-actions">${this.button('export','Daten exportieren')}${this.button('restore','Daten importieren')}</div></section><section class="settings-card"><h2>Daten zurücksetzen</h2><p>Geräte, Aufgaben, Historie und Verbrauchsmaterial zurücksetzen. Kategorien, Ereignisarten und allgemeine Einstellungen bleiben erhalten.</p><div class="actions settings-actions">${this.button('resetalldata','Daten zurücksetzen')}</div></section><p class="small sub settings-version">Version ${E(d.version)} / Datenrevision ${d.revision}</p>`;}
   async readDirectoryFile(file){
@@ -579,9 +619,10 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
       },'Ausgewählte Geräte erfassen');
     },'Vorschau anzeigen');
   }
+  batteryThresholdHelperInfo(threshold=this.batteryThreshold()){return 'Gespeichert im Home-Assistant-Helfer <code>'+E(threshold.entity)+'</code>. '+(threshold.entity==='input_number.batterien_schwellwert'?'Die App prüft ihn beim Laden und legt ihn bei Bedarf automatisch mit 20 % an.':'Der ausgewählte Helfer wird verwendet; sein bestehender Wert bleibt erhalten.');}
   batteryThresholdEditor(){
     const threshold=this.batteryThreshold(),limits=this.batteryThresholdLimits();
-    return `<h2>Batteriewarnung</h2><label class="battery-threshold-setting" for="battery-threshold-input"><div class="battery-threshold-value"><input id="battery-threshold-input" type="range" min="${E(limits.min)}" max="${E(limits.max)}" step="${E(limits.step)}" value="${E(threshold.value)}" aria-label="Batterieschwellenwert in Prozent" aria-describedby="battery-threshold-hint" ${threshold.valid&&!this.pendingBatteryHelperSelection()?'':'disabled'}><output id="battery-threshold-output" for="battery-threshold-input">${E(threshold.value)} %</output></div></label><p id="battery-threshold-hint" class="small sub">${E(this.batteryThresholdHint(threshold))}</p><p class="small sub">Gespeichert im Home-Assistant-Helfer <code>${E(threshold.entity)}</code>. ${threshold.entity==='input_number.batterien_schwellwert'?'Die App prüft ihn beim Laden und legt ihn bei Bedarf automatisch mit 20 % an.':'Der ausgewählte Helfer wird verwendet; sein bestehender Wert bleibt erhalten.'}</p><p id="battery-threshold-status" class="small" role="status" aria-live="polite">${E(this.helperCheckError||'')}</p>`;
+    return `<h2>Batteriewarnung</h2><label class="battery-threshold-setting" for="battery-threshold-input"><div class="battery-threshold-value"><input id="battery-threshold-input" type="range" min="${E(limits.min)}" max="${E(limits.max)}" step="${E(limits.step)}" value="${E(threshold.value)}" aria-label="Batterieschwellenwert in Prozent" aria-describedby="battery-threshold-hint" ${threshold.valid&&!this.pendingBatteryHelperSelection()?'':'disabled'}><output id="battery-threshold-output" for="battery-threshold-input">${E(threshold.value)} %</output></div></label><p id="battery-threshold-hint" class="small sub">${E(this.batteryThresholdHint(threshold))}</p><p id="battery-threshold-helper" class="small sub">${this.batteryThresholdHelperInfo(threshold)}</p><p id="battery-threshold-status" class="small" role="status" aria-live="polite">${E(this.helperCheckError||'')}</p>`;
   }
   syncBatteryThresholdControl(){
     const input=this.shadowRoot.querySelector('#battery-threshold-input');if(!input)return;
@@ -590,7 +631,7 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
     input.disabled=!!(this.thresholdSaving||this.inlineSettingsSaving||this.pendingBatteryHelperSelection()||!threshold.valid);
     if(!this.thresholdSaving&&this.shadowRoot.activeElement!==input)input.value=String(threshold.value);
     const output=this.shadowRoot.querySelector('#battery-threshold-output');if(output)output.textContent=input.value+' %';
-    this.shadowRoot.querySelector('#battery-threshold-hint').textContent=this.batteryThresholdHint(threshold);
+    this.shadowRoot.querySelector('#battery-threshold-hint').textContent=this.batteryThresholdHint(threshold);const info=this.shadowRoot.querySelector('#battery-threshold-helper');if(info){const html=this.batteryThresholdHelperInfo(threshold);if(info.innerHTML!==html)info.innerHTML=html;}
   }
   bindBatteryThresholdControl(){
     const input=this.shadowRoot.querySelector('#battery-threshold-input');if(!input)return;
