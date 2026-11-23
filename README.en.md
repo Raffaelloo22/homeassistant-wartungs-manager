@@ -6,7 +6,7 @@ Automated maintenance planning and consumable stock management for Home Assistan
 
 Configure rules and links once: Wartungs-Manager calculates due dates, displays battery warnings and creates purchase reminders when stock runs low. Confirmed completions record history, advance recurring work and optionally deduct linked materials.
 
-[Deutsche Anleitung](README.md) · [Report a problem](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
+[Deutsche Anleitung](README.md) · [Report a problem](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) · [☕ Support development](https://buymeacoffee.com/raffaelloo)
 
 ## Automatic workflows
 
@@ -155,6 +155,12 @@ If you want to erase the maintenance directory, export anything you need and use
 - **Weekly summaries:** these are persistent notifications inside Home Assistant, not mobile push messages or email. Their planning horizon is seven days, while the dashboard's **Bald** filter uses 14 days.
 
 Use [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) for bugs and feature requests. Include the Home Assistant version, Wartungs-Manager version and steps to reproduce, with anonymized screenshots or logs. Do not post exports, access tokens or private household information. See [SECURITY.md](SECURITY.md) for security reports and [CONTRIBUTING.md](CONTRIBUTING.md) for development.
+
+## Support development
+
+If Wartungs-Manager is useful to you, you can support its development with a coffee:
+
+[☕ Buy me a coffee](https://buymeacoffee.com/raffaelloo)
 
 ## License
 

@@ -6,7 +6,7 @@ Automatisierte Wartungsplanung und Vorratsverwaltung für Home Assistant – mit
 
 Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligkeiten, zeigt Batteriewarnungen an und erstellt Nachkaufaufträge bei niedrigen Beständen. Bestätigte Erledigungen schreiben die Historie und die nächste Wartung fort; verknüpftes Verbrauchsmaterial wird nach deiner Bestätigung vom Bestand abgezogen.
 
-[English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
+[English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) · [☕ Unterstützen](https://buymeacoffee.com/raffaelloo)
 
 ## Was automatisch passiert
 
@@ -202,6 +202,12 @@ Wer die Wartungsdaten entfernen möchte, exportiert vorher benötigte Angaben un
 - **Wochenmeldung:** Sie erscheint als persistente Mitteilung in Home Assistant und wird nicht per E-Mail oder mobilem Push versendet. Ihre Vorschau umfasst sieben Tage; der Filter **Bald** auf dem Dashboard umfasst 14 Tage.
 
 Fehler und Wünsche über [Issues](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues) melden. Versionen, reproduzierbare Schritte und anonymisierte Screenshots oder Logs angeben. Keine Exporte, Zugriffstoken oder privaten Haushaltsangaben veröffentlichen. Sicherheitshinweise stehen in [SECURITY.md](SECURITY.md), Entwicklungsinformationen in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Unterstützen
+
+Wenn dir der Wartungs-Manager hilft, kannst du die Weiterentwicklung mit einem Kaffee unterstützen:
+
+[☕ Buy me a coffee](https://buymeacoffee.com/raffaelloo)
 
 ## Lizenz
 
