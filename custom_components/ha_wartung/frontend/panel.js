@@ -866,7 +866,8 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
   deviceTaskCount(d,counts){if(this.archived(d))return '';const count=(counts||this.deviceTaskCounts()).get(d.id)||0;return count?count+' '+(count===1?'Aufgabe':'Aufgaben'):'';}
   inlineStatus(d){
     if(!d.battery_type&&!d.battery_entity_id)return '';
-    return '| '+E(this.batteryState(d).text+' · '+this.batteryThresholdLabel());
+    const state=this.batteryState(d);
+    return '| '+(state.value===null?E(state.text):'Batterie: <span'+(state.low?' class="due"':'')+'>'+E(state.value)+' %</span>');
   }
   deviceMetadata(d){return [d.ha_device_id?(d.area||'Bereich unbekannt'):null,d.battery_type?'Batterie: '+(d.battery_quantity||1)+' × '+d.battery_type:null,this.deviceMaterialText(d)].filter(Boolean).map(E).join(' / ');}
   deviceList(archived){

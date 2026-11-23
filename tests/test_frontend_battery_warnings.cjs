@@ -46,15 +46,28 @@ p._hass.states['sensor.battery'].state='13';p.updateBatteryWarnings();assert.equ
 p._hass.states['sensor.battery'].state='unavailable';p.updateBatteryWarnings();assert.equal(warning.hidden,true);assert.equal(autoValue.textContent,'Unbekannt');
 console.log('PASS: Batteriewarnungen zeigen Stand und echte/Ersatzschwelle, behalten strikte Grenzen und Deduplizierung, aktualisieren vorhandene DOM-Knoten.');
 
-// Device cards explain the central threshold even above it, without inventing sensor values.
-const cards=setup();assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: 19.9 % · Warnschwelle 20 %');
-cards._hass.states['sensor.battery'].state='80';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: 80 % · Warnschwelle 20 %');
-cards._hass.states['input_number.batterien_schwellwert'].state='60';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: 80 % · Warnschwelle 60 %');
-cards._hass.states['sensor.battery'].state='unknown';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: unbekannt · Warnschwelle 60 %');
-assert.equal(cards.inlineStatus({id:'no-sensor',battery_type:'AA'}),'| Batterie: kein Sensor · Warnschwelle 60 %');
+// Device cards show only the measured percentage, red strictly below the current threshold.
+const cards=setup(),low=value=>'| Batterie: <span class="due">'+value+' %</span>',normal=value=>'| Batterie: <span>'+value+' %</span>';
+assert.equal(cards.inlineStatus(cards.data.devices.d),low(19.9));
+cards._hass.states['sensor.battery'].state='20';assert.equal(cards.inlineStatus(cards.data.devices.d),normal(20),'equality is never red');
+cards._hass.states['sensor.battery'].state='80';assert.equal(cards.inlineStatus(cards.data.devices.d),normal(80));
+cards._hass.states['input_number.batterien_schwellwert'].state='60';assert.equal(cards.inlineStatus(cards.data.devices.d),normal(80));
+cards._hass.states['input_number.batterien_schwellwert'].state='12.5';cards._hass.states['sensor.battery'].state='12.49';
+assert.equal(cards.inlineStatus(cards.data.devices.d),low(12.49),'the exact measured value remains below the threshold instead of rounding to equality');
+cards._hass.states['sensor.battery'].state='unknown';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: unbekannt');
+assert.equal(cards.inlineStatus({id:'no-sensor',battery_type:'AA'}),'| Batterie: kein Sensor');
 assert.equal(cards.inlineStatus({id:'no-battery'}),'');
-cards._hass.states['input_number.batterien_schwellwert'].state='unavailable';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: unbekannt · Ersatzschwelle 20 %');
-const status={dataset:{inlineStatusDevice:'d'},innerHTML:'old'};cards.shadowRoot={querySelectorAll:selector=>selector==='[data-inline-status-device]'?[status]:[]};
-cards.updateDeviceStatuses();assert.equal(status.innerHTML,'| Batterie: unbekannt · Ersatzschwelle 20 %');
-cards._hass.states['sensor.battery'].state='50';cards._hass.states['input_number.batterien_schwellwert'].state='60';cards.updateDeviceStatuses();assert.equal(status.innerHTML,'| Batterie: 50 % · Warnschwelle 60 %');
-console.log('PASS: Gerätekacheln zeigen Stand und Warnschwelle auch oberhalb der Schwelle, unterscheiden unbekannt/kein Sensor und aktualisieren live.');
+cards._hass.states['input_number.batterien_schwellwert'].state='unavailable';assert.equal(cards.inlineStatus(cards.data.devices.d),'| Batterie: unbekannt');
+cards._hass.states['sensor.battery'].state='19.9';assert.equal(cards.inlineStatus(cards.data.devices.d),low(19.9),'the existing fallback comparison is retained when the helper is unavailable');
+const status={dataset:{inlineStatusDevice:'d'},innerHTML:'old'},root={innerHTML:'Existing device cards',querySelectorAll:selector=>selector==='[data-inline-status-device]'?[status]:[]};cards.shadowRoot=root;
+for(const method of ['syncBatteryThresholdControl','updateBatteryBadges','updateBatteryWarnings','updateBatteryTaskStructure','updateRuleSensorValue'])cards[method]=()=>{};
+const publish=()=>{cards.hass=JSON.parse(JSON.stringify(cards._hass));assert.equal(root.innerHTML,'Existing device cards','live updates replace only the inline battery value');assert(!/Warnschwelle|Ersatzschwelle/.test(status.innerHTML),'device cards never repeat the threshold text');};
+cards._hass.states['sensor.battery'].state='24';cards._hass.states['input_number.batterien_schwellwert'].state='25';publish();assert.equal(status.innerHTML,low(24));
+cards._hass.states['sensor.battery'].state='25';publish();assert.equal(status.innerHTML,normal(25),'a live sensor update to equality clears the red value');
+cards._hass.states['input_number.batterien_schwellwert'].state='26';publish();assert.equal(status.innerHTML,low(25),'a helper-only update can turn the existing value red');
+cards._hass.states['input_number.batterien_schwellwert'].state='24';publish();assert.equal(status.innerHTML,normal(25),'a helper-only update also clears red again');
+cards.data.settings={battery_threshold_entity:'input_number.custom_threshold'};cards._hass.states['input_number.custom_threshold']={state:'30'};publish();assert.equal(status.innerHTML,low(25),'the selected helper is used rather than a hard-coded default');
+for(const raw of ['unknown','unavailable','',undefined,'-1','101']){cards._hass.states['sensor.battery'].state=raw;publish();assert.equal(status.innerHTML,'| Batterie: unbekannt','unknown or invalid sensor readings remain neutral');}
+delete cards._hass.states['sensor.battery'];publish();assert.equal(status.innerHTML,'| Batterie: unbekannt','a missing linked sensor has no red placeholder');
+delete cards.data.devices.d.battery_entity_id;publish();assert.equal(status.innerHTML,'| Batterie: kein Sensor','a device without a sensor stays neutral');
+console.log('PASS: Gerätekacheln zeigen nur den gemessenen Batteriewert, rot strikt unter der Helferschwelle, neutral bei unbekanntem Sensor und live aktualisiert.');

@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 1.2.13
+
+- Gerätekacheln zeigen den Batteriestand ohne zusätzlichen Warnschwellentext.
+- Ausschliesslich der gemessene Prozentwert erscheint rot, wenn er unter dem aktuellen Schwellenwert liegt. Sensor- und Schwellenwertänderungen aktualisieren die Farbe unmittelbar; unbekannte Werte bleiben neutral.
+
 ## 1.2.12
 
 - Verbrauchsmaterial-PDF auf A4-Querformat umgestellt, weiterhin eine kompakte Zeile je Artikel.
