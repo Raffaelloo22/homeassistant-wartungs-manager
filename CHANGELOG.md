@@ -2,6 +2,8 @@
 
 ## 1.2.4
 
+- Batterietyp im Geräteformular aus den erfassten Typen auswählen; bestehende Sondertypen bleiben erhalten.
+
 - Batteriekacheln zeigen die Anzahl zugeordneter Geräte und den summierten Batteriebedarf, auch auf Smartphones. Unbekannte Mengen werden ausdrücklich gekennzeichnet.
 
 - Optionaler Zuordnungsfilter im Verbrauchsmaterial blendet Batterien und weitere Artikel ohne zugeordnete Geräte aus. Kombinierbar mit der Textsuche in Kacheln und Liste; Bestände und Zuordnungen bleiben erhalten.

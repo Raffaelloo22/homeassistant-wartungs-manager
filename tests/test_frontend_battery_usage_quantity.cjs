@@ -66,4 +66,21 @@ assert.equal(JSON.stringify(p.data),before,'rendering usage quantities must neve
  assert.equal(row.devices.length,3);assert.equal(p.inventoryBatteryUsageText(row.devices,'AA'),'3 Geräte benötigen mindestens 6 Batterien · Anzahl bei 2 Geräten nicht erfasst','only actual linked devices contribute, and unknown counts remain explicit');
  assert.equal(JSON.stringify(p.data),before);
 }
+{
+ const {p}=fixture();p.data.settings.battery_inventory={AA:8,CR2032:10};p.data.settings.battery_inventory_hidden_types=['Akku (fest verbaut)'];
+ p.data.devices={existing:{id:'existing',name:'Sensor',battery_type:'AAA',battery_quantity:2}};
+ const before=JSON.stringify(p.data),options=JSON.parse(JSON.stringify(p.deviceBatteryOptions()));
+ assert.deepEqual(options,[['','Keine Batterie'],['AA','AA'],['AAA','AAA'],['CR2032','CR2032']],'device form offers inventory and device-derived types with an explicit empty choice');
+ const html=p.deviceFields({id:'current',battery_type:'Akku (fest verbaut)',battery_quantity:1});
+ assert(html.includes('<select name="battery_type">')&&!html.includes('<input name="battery_type"'),'device battery type is selected rather than entered freely');
+ assert(html.includes('<option value="Akku (fest verbaut)" selected>'),'an existing hidden or legacy type remains selected and cannot be lost on unrelated edits');
+ assert.equal(p.deviceBatteryOptions('AA').filter(([type])=>type==='AA').length,1);
+ const labels={quantity:{hidden:false},alert:{hidden:false}},events={},type={value:'',addEventListener:(name,handler)=>events[name]=handler},checkbox={checked:false,disabled:false,closest:()=>labels.alert},quantity={disabled:false,closest:()=>labels.quantity};
+ p.bindBatteryFields({querySelector:selector=>({'[name=battery_type]':type,'[name=battery_alert_enabled]':checkbox,'[name=battery_quantity]':quantity})[selector]});
+ assert(quantity.disabled&&labels.quantity.hidden&&checkbox.disabled&&labels.alert.hidden);
+ type.value='AA';events.change();assert(!quantity.disabled&&!labels.quantity.hidden&&checkbox.checked&&!checkbox.disabled,'select changes reveal quantity and activate warnings');
+ checkbox.checked=false;type.value='AAA';events.change();assert(!checkbox.checked,'switching between types respects a disabled device warning');
+ type.value='';events.change();assert(quantity.disabled&&labels.quantity.hidden&&!checkbox.checked&&checkbox.disabled,'clearing battery selection hides and disables dependent fields');
+ assert.equal(JSON.stringify(p.data),before,'building options and changing the unsaved form does not alter stored devices or inventory');
+}
 console.log('PASS: Batterie-Verwendung zeigt Geräteanzahl mit Singular/Plural, Legacy-Mengen, sicheren manuellen Zuordnungen und unveränderten Materiallinks.');
