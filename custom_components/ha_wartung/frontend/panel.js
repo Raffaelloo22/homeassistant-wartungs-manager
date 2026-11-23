@@ -169,7 +169,7 @@ class WartungPanel extends HTMLElement {
   inventoryGroups(rows){return [['battery','Batterien'],['material','Weitere Verbrauchsmaterialien']].map(([kind,label])=>({label,items:rows.filter(item=>item.kind===kind).sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base',numeric:true}))})).filter(group=>group.items.length);}
   inventoryPdfPayload(){
     const rows=this.inventoryItems().filter(item=>this.inventoryMatches(item));
-    return {items:this.inventoryGroups(rows).flatMap(group=>group.items.map(item=>({kind:item.kind,name:item.name,quantity:item.quantity??null,unit:item.unit,devices:item.devices.map(device=>device.name)}))),query:this.inventoryQuery||'',assignment_filter:this.inventoryAssignment||'all'};
+    return {items:this.inventoryGroups(rows).flatMap(group=>group.items.map(item=>({kind:item.kind,name:item.name,quantity:item.quantity??null,unit:item.unit,devices:item.devices.map(device=>device.name),...(item.kind==='battery'?{usage:this.inventoryBatteryUsageText(item.devices,item.id)}:{})}))),query:this.inventoryQuery||'',assignment_filter:this.inventoryAssignment||'all'};
   }
   saveInventoryPdf(result){
     if(result.content_type!=='application/pdf'||typeof result.data!=='string')throw Error('Die PDF-Datei konnte nicht erstellt werden.');

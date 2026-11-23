@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 1.2.12
+
+- Verbrauchsmaterial-PDF auf A4-Querformat umgestellt, weiterhin eine kompakte Zeile je Artikel.
+- Vor den Geräten erscheint bei Batterien der dynamische Gesamtbedarf aus derselben Berechnung wie in der App, beispielsweise «20 Geräte benötigen 24 Batterien». Unbekannte Mengen bleiben als solche erkennbar.
+- Lange Listen behalten einen lesbaren Restzähler; Suche, Zuordnungsfilter, Logo sowie Datum, Uhrzeit und Seitenzahl bleiben erhalten.
+
 ## 1.2.11
 
 - Gezielte Änderungsmarkierung für ausgewählte Geräte über die Admin-Schnittstelle. Sie verwendet die aktuelle Home-Assistant-Zeit und verändert ausschliesslich den Änderungszeitstempel; Gerätedaten, Erfassungsdatum und Aufgaben bleiben erhalten.

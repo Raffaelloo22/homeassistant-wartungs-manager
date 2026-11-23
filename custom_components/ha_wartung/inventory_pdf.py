@@ -8,7 +8,7 @@ from threading import Lock
 
 import reportlab
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -49,6 +49,7 @@ def validate_inventory_pdf(payload):
             raise ValueError('Ungültige Artikelgruppe im PDF.')
         name = _text(item.get('name'), 500, 'Bezeichnung')
         unit = _text(item.get('unit'), 80, 'Einheit')
+        usage = _text(item.get('usage', ''), 200, 'Batteriebedarf', empty=True)
         quantity = item.get('quantity')
         if quantity is not None and (type(quantity) not in (int, float)
                                      or not -100000 <= quantity <= 100000 or not isfinite(quantity)):
@@ -58,10 +59,10 @@ def validate_inventory_pdf(payload):
             raise ValueError('Ungültige Geräteliste im PDF.')
         devices = [_text(device, 500, 'Gerätename') for device in devices]
         references += len(devices)
-        total_characters += len(name) + len(unit) + sum(len(device) for device in devices)
+        total_characters += len(name) + len(unit) + len(usage) + sum(len(device) for device in devices)
         if references > 10000 or total_characters > 1000000:
             raise ValueError('Die Artikelliste ist für ein PDF zu umfangreich.')
-        result.append(dict(kind=item['kind'], name=name, quantity=quantity, unit=unit, devices=devices))
+        result.append(dict(kind=item['kind'], name=name, quantity=quantity, unit=unit, devices=devices, usage=usage))
     return dict(items=result, query=query, assignment_filter=assignment)
 
 
@@ -115,6 +116,10 @@ def _fit(text, width):
     return _prefix(text, width - _width('…')) + '…', True
 
 
+def _device_suffix(remaining):
+    return '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+
+
 def _device_text(devices, width):
     names = [_one_line(name) for name in devices]
     if not names:
@@ -126,20 +131,35 @@ def _device_text(devices, width):
     shown = []
     for name in names:
         remaining = len(names) - len(shown) - 1
-        suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+        suffix = _device_suffix(remaining)
         candidate = ', '.join([*shown, name, suffix])
         if _width(candidate) > width:
             break
         shown.append(name)
     remaining = len(names) - len(shown)
-    suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+    suffix = _device_suffix(remaining)
     if shown:
         return ', '.join([*shown, suffix]), True
     # A shortened first name still represents one visible device.
     remaining = len(names) - 1
-    suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+    suffix = _device_suffix(remaining)
     prefix = _prefix(names[0], max(0, width - _width(' ' + suffix)))
     return (prefix + ' ' if prefix else '') + suffix, True
+
+
+def _usage_devices_text(devices, usage, width):
+    """Keep the shared UI summary before names, with space for a device and count."""
+    if not usage:
+        return _device_text(devices, width)[0]
+    minimum = _width('—')
+    if devices:
+        first = _one_line(devices[0])[:1]
+        tail = ' ' + _device_suffix(len(devices) - 1) if len(devices) > 1 else '…'
+        minimum = _width(first + tail)
+    summary, _ = _fit(usage, max(0, width - minimum - _width(' · ')))
+    prefix = summary + ' · ' if summary else ''
+    names, _ = _device_text(devices, max(0, width - _width(prefix)))
+    return prefix + names
 
 
 def _logo(canvas):
@@ -173,7 +193,8 @@ def build_inventory_pdf(payload, when):
         assigned = data['assignment_filter'] == 'with'
         data['items'] = [item for item in data['items'] if bool(item['devices']) == assigned]
     _fonts()
-    page_width, page_height = A4
+    page_size = landscape(A4)
+    page_width, page_height = page_size
     left, right = 12 * mm, page_width - 12 * mm
     usable = right - left
     # Keep the complete stock number; only its unit may be shortened.
@@ -187,10 +208,11 @@ def build_inventory_pdf(payload, when):
         unit, _ = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' ')))
         stock = amount + (' ' + unit if unit else '')
         name, _ = _fit(item['name'], widths[1] - 8)
-        devices, _ = _device_text(item['devices'], widths[2] - 8)
+        usage = item['usage'] if item['kind'] == 'battery' else ''
+        devices = _usage_devices_text(item['devices'], usage, widths[2] - 8)
         rows.append(dict(kind=item['kind'], stock=stock, name=name, devices=devices))
     output = BytesIO()
-    canvas = Canvas(output, pagesize=A4, pageCompression=1)
+    canvas = Canvas(output, pagesize=page_size, pageCompression=1)
     canvas.setTitle('Verbrauchsmaterial')
     canvas.setAuthor('Wartungs-Manager')
     _logo(canvas)

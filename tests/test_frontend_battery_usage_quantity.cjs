@@ -37,6 +37,7 @@ assert.equal(JSON.stringify(p.data),before,'rendering usage quantities must neve
  assert.equal(row.devices.length,4,'automatic and repeated manual assignments refer to each existing device only once');
  assert.equal(p.inventoryBatteryUsageText(row.devices,'AA'),'4 Geräte benötigen 12 Batterien','quantities are summed rather than multiplied by a single device quantity');
  const card=p.inventoryCard(row),caption='4 Geräte benötigen 12 Batterien';
+ assert.equal(p.inventoryPdfPayload().items.find(item=>item.name==='AA Batterie').usage,caption,'PDF exports the same known demand without its own arithmetic');
  assert.equal(card.split(caption).length-1,2,'desktop metadata and compact mobile disclosure show the same device and battery totals');
  assert(card.includes('inventory-usage-desktop">Geräte anzeigen'),'desktop disclosure remains available');
  assert(card.includes('data-action="record" data-id="two"')&&card.includes('data-action="record" data-id="six"'),'device links remain usable');
@@ -64,7 +65,20 @@ assert.equal(JSON.stringify(p.data),before,'rendering usage quantities must neve
  p.data.settings.battery_inventory={AA:1};p.data.settings.battery_device_links={AA:['known','known','wrong','absent','removed','missing']};
  const before=JSON.stringify(p.data),row=p.inventoryItems().find(item=>item.id==='AA');
  assert.equal(row.devices.length,3);assert.equal(p.inventoryBatteryUsageText(row.devices,'AA'),'3 Geräte benötigen mindestens 6 Batterien · Anzahl bei 2 Geräten nicht erfasst','only actual linked devices contribute, and unknown counts remain explicit');
+ assert.equal(p.inventoryPdfPayload().items.find(item=>item.name==='AA Batterie').usage,p.inventoryBatteryUsageText(row.devices,'AA'),'PDF preserves uncertain counts rather than inventing a total');
  assert.equal(JSON.stringify(p.data),before);
+}
+{
+ const {p}=fixture();
+ p.data.devices=Object.fromEntries(Array.from({length:20},(_,index)=>['sensor-'+index,{id:'sensor-'+index,name:'Beispielsensor '+index,battery_type:'CR2032',battery_quantity:index<4?2:1}]));
+ p.data.settings.battery_inventory={CR2032:45,CR2450:0,AA:1};
+ p.data.settings.battery_device_links={CR2032:['sensor-0','sensor-0','missing'],AA:['sensor-1','sensor-2']};
+ const before=JSON.stringify(p.data),items=p.inventoryPdfPayload().items;
+ const assigned=items.find(item=>item.name==='CR2032 Batterie');
+ assert.equal(assigned.devices.length,20);assert.equal(assigned.usage,'20 Geräte benötigen 24 Batterien','PDF counts mixed device quantities and deduplicates explicit assignments');
+ assert.equal(items.find(item=>item.name==='CR2450 Batterie').usage,'0 Geräte benötigen 0 Batterien');
+ assert.equal(items.find(item=>item.name==='AA Batterie').usage,'2 Geräte · Batterieanzahl nicht erfasst','manual links of a different battery type keep the unknown-demand warning');
+ assert.equal(JSON.stringify(p.data),before,'preparing PDF demand does not change stock, quantities or assignments');
 }
 {
  const {p}=fixture();p.data.settings.battery_inventory={AA:8,CR2032:10};p.data.settings.battery_inventory_hidden_types=['Akku (fest verbaut)'];

@@ -69,8 +69,8 @@ class InventoryPdf(unittest.TestCase):
             self.assertEqual(text.count('23.11.26 · 14:20'), 1)
             self.assertNotIn('Stand:', text)
             self.assertNotRegex(text, r'\b\d+ Artikel\b')
-            self.assertAlmostEqual(float(page.mediabox.width), 595.2756, places=3)
-            self.assertAlmostEqual(float(page.mediabox.height), 841.8898, places=3)
+            self.assertAlmostEqual(float(page.mediabox.width), 841.8898, places=3)
+            self.assertAlmostEqual(float(page.mediabox.height), 595.2756, places=3)
             forms = page['/Resources']['/XObject']
             logo = forms['/FormXob.WartungsManagerLogo'].get_object()
             self.assertEqual(logo['/Subtype'], '/Form')
@@ -131,25 +131,26 @@ class InventoryPdf(unittest.TestCase):
         items = [dict(kind='material', name=f'Artikel {index:03d}', quantity=index + 0.5,
                       unit='Stück', devices=['Gerät A', 'Gerät B']) for index in range(40)]
         reader = read_pdf(build_inventory_pdf(payload(items), WHEN))
-        self.assertEqual(len(reader.pages), 1)
+        self.assertGreater(len(reader.pages), 1)
         spans = []
-        reader.pages[0].extract_text(visitor_text=lambda text, cm, tm, font, size:
-                                     spans.append((text.strip(), tm[4], tm[5], font, size)) if text.strip() else None)
+        for page_index, page in enumerate(reader.pages):
+            page.extract_text(visitor_text=lambda text, cm, tm, font, size, page_index=page_index:
+                              spans.append((text.strip(), tm[4], tm[5], font, size, page_index)) if text.strip() else None)
         previous = None
         for index in range(40):
             matching = [span for span in spans if span[0] == f'Artikel {index:03d}']
             self.assertEqual(len(matching), 1)
-            _, _, baseline, _, _ = matching[0]
-            row = [span for span in spans if span[2] == baseline]
+            _, _, baseline, _, _, page_index = matching[0]
+            row = [span for span in spans if span[2] == baseline and span[5] == page_index]
             self.assertEqual(len(row), 3, 'Stock with unit, material name and devices each use one line')
             self.assertEqual(row[0][0], f'{index + 0.5} Stück')
             self.assertTrue(all(span[4] == 8 for span in row))
             self.assertEqual(len({span[3]['/BaseFont'] for span in row}), 1)
             self.assertTrue(str(row[0][3]['/BaseFont']).endswith('BitstreamVeraSans-Roman'))
-            if previous is not None:
-                self.assertAlmostEqual(previous - baseline, 14)
-            previous = baseline
-        self.assertNotIn('Lange Angaben', reader.pages[0].extract_text())
+            if previous is not None and previous[0] == page_index:
+                self.assertAlmostEqual(previous[1] - baseline, 14, places=3)
+            previous = page_index, baseline
+        self.assertTrue(all('Lange Angaben' not in page.extract_text() for page in reader.pages))
 
     def test_stock_numbers_are_complete_and_long_fields_never_overlap(self):
         from inventory_pdf import _quantity, _width
@@ -168,11 +169,110 @@ class InventoryPdf(unittest.TestCase):
             self.assertTrue(row[0][0].startswith(_quantity(value)))
             for left, right in zip(row, row[1:]):
                 self.assertLessEqual(left[1] + _width(left[0]), right[1])
-            self.assertLessEqual(row[-1][1] + _width(row[-1][0]), 595.2756 - 12 * 72 / 25.4)
+            self.assertLessEqual(row[-1][1] + _width(row[-1][0]), float(reader.pages[0].mediabox.width) - 12 * 72 / 25.4)
         text = reader.pages[0].extract_text()
         self.assertIn('99999.12345678', text)
         self.assertIn('1.2345678901234567', text)
         self.assertIn('1e-100', text)
+
+    def test_battery_usage_precedes_names_on_one_line_with_an_exact_remaining_count(self):
+        names = [f'Synthetischer Sensor {index:02d}' for index in range(1, 21)]
+        usage = '20 Geräte benötigen 24 Batterien'
+        request = payload([item(devices=names, usage=usage)])
+        before = deepcopy(request)
+        reader = read_pdf(build_inventory_pdf(request, WHEN))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        self.assertIn(usage, text)
+        self.assertLess(text.index(usage), text.index(names[0]))
+        shown = sum(name in text for name in names)
+        self.assertGreater(shown, 0)
+        self.assertLess(shown, len(names))
+        self.assertIn(f'(+{len(names) - shown} Geräte)', text)
+        spans = []
+        reader.pages[0].extract_text(visitor_text=lambda value, cm, tm, font, size:
+                                     spans.append((value.strip(), tm[4], tm[5], size)) if value.strip() else None)
+        name = next(span for span in spans if span[0] == 'AA Batterie')
+        row = [span for span in spans if span[2] == name[2]]
+        self.assertEqual(len(row), 3, 'The usage and device names share the existing third column and baseline')
+        self.assertTrue(row[-1][0].startswith(usage + ' · '))
+        self.assertTrue(all(span[3] == 8 for span in row))
+        self.assertEqual(request, before)
+
+    def test_usage_preserves_unknown_counts_and_normalizes_multiline_literal_text(self):
+        for usage, devices in (
+            ('2 Geräte benötigen mindestens 6 Batterien · Anzahl bei 1 Gerät nicht erfasst', ['Sensor A', 'Sensor B']),
+            ('2 Geräte · Batterieanzahl nicht erfasst', ['Sensor A', 'Sensor B']),
+            ('0 Geräte benötigen 0 Batterien', []),
+            ('1 Gerät benötigt\n1 Batterie\t· <b>Hinweis</b>', ['Sensor A']),
+        ):
+            with self.subTest(usage=usage):
+                reader = read_pdf(build_inventory_pdf(payload([item(usage=usage, devices=devices)]), WHEN))
+                text = reader.pages[0].extract_text()
+                expected = ' '.join(usage.split())
+                self.assertIn(expected, text)
+                spans = []
+                reader.pages[0].extract_text(visitor_text=lambda value, cm, tm, font, size:
+                                             spans.append(value.strip()) if value.strip() else None)
+                self.assertEqual(sum(value.startswith(expected + ' · ') for value in spans), 1)
+                self.assertNotIn('/Annots', reader.pages[0], 'Usage is plain text, including any markup')
+
+    def test_long_usage_and_device_names_never_overflow_or_lose_the_remaining_count(self):
+        from inventory_pdf import _width
+        for count in (1, 2, 1000):
+            with self.subTest(count=count):
+                names = [f'Gerät {index:04d} ' + 'Sehr langer Name ' * 20 for index in range(count)]
+                reader = read_pdf(build_inventory_pdf(payload([item(usage='X' * 200, devices=names)]), WHEN))
+                self.assertEqual(len(reader.pages), 1)
+                text = reader.pages[0].extract_text()
+                self.assertNotIn('X' * 200, text)
+                self.assertIn('…', text)
+                if count > 1:
+                    self.assertIn(f'(+{count - 1} ' + ('Gerät)' if count == 2 else 'Geräte)'), text)
+                spans = []
+                reader.pages[0].extract_text(visitor_text=lambda value, cm, tm, font, size:
+                                             spans.append((value.strip(), tm[4], tm[5], size)) if value.strip() else None)
+                name = next(span for span in spans if span[0] == 'AA Batterie')
+                row = sorted((span for span in spans if span[2] == name[2]), key=lambda span: span[1])
+                self.assertEqual(len(row), 3)
+                for left, right in zip(row, row[1:]):
+                    self.assertLessEqual(left[1] + _width(left[0], left[3]), right[1])
+                self.assertLessEqual(row[-1][1] + _width(row[-1][0], row[-1][3]),
+                                     float(reader.pages[0].mediabox.width) - 12 * 72 / 25.4)
+
+    def test_legacy_payloads_without_usage_and_general_materials_remain_unchanged(self):
+        omitted = read_pdf(build_inventory_pdf(payload(), WHEN)).pages[0].extract_text()
+        empty = read_pdf(build_inventory_pdf(payload([item(usage='')]), WHEN)).pages[0].extract_text()
+        self.assertEqual(omitted, empty)
+        material = item(kind='material', name='Reinigungssalz', usage='Kein Batteriebedarf für andere Materialien')
+        text = read_pdf(build_inventory_pdf(payload([material]), WHEN)).pages[0].extract_text()
+        self.assertIn('Reinigungssalz', text)
+        self.assertIn('Türsensor - Zimmer Eléa', text)
+        self.assertNotIn(material['usage'], text)
+
+    def test_usage_never_changes_the_device_assignment_filter(self):
+        rows = [item(name='Batterie ohne Zuordnung', devices=[], usage='0 Geräte benötigen 0 Batterien'),
+                item(name='Batterie mit Zuordnung', devices=['Sensor A'])]
+        for mode, present, absent in (('with', rows[1]['name'], rows[0]['name']),
+                                     ('without', rows[0]['name'], rows[1]['name'])):
+            with self.subTest(mode=mode):
+                request = payload(rows, assignment_filter=mode)
+                before = deepcopy(request)
+                text = read_pdf(build_inventory_pdf(request, WHEN)).pages[0].extract_text()
+                self.assertIn(present, text)
+                self.assertNotIn(absent, text)
+                self.assertEqual(request, before)
+
+    def test_usage_has_an_explicit_text_bound_and_counts_towards_the_document_limit(self):
+        self.assertEqual(validate_inventory_pdf(payload([item(usage='x' * 200)]))['items'][0]['usage'], 'x' * 200)
+        for usage in ('x' * 201, None, True, 3, [], {}, '\x00', '\ud800'):
+            with self.subTest(usage=repr(usage)[:30]), self.assertRaises(ValueError):
+                validate_inventory_pdf(payload([item(usage=usage)]))
+        request = payload([item(name='N' * 500, unit='u' * 80, devices=['d' * 420])] * 1000)
+        validate_inventory_pdf(request)
+        request['items'][0] = dict(request['items'][0], usage='x')
+        with self.assertRaisesRegex(ValueError, 'zu umfangreich'):
+            validate_inventory_pdf(request)
 
     def test_empty_selection_has_no_removed_subtitles_or_filter_annotations(self):
         result = build_inventory_pdf(dict(items=[], query='Filter & Salz', assigned_only=True), WHEN)

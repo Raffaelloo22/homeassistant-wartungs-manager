@@ -278,9 +278,12 @@ async def assert_snapshot(api, expected, *, shop_urls):
         if tuple(map(int, version.split('.'))) >= (1, 2, 7):
             filters = [{"assignment_filter": mode} for mode in ("all", "with", "without")]
         for selection in filters:
+            battery = {"kind": "battery", "name": "AA Batterie", "quantity": 3, "unit": "Stück",
+                       "devices": ["Example appliance"]}
+            if tuple(map(int, version.split('.'))) >= (1, 2, 12):
+                battery["usage"] = "1 Gerät benötigt 2 Batterien"
             pdf = await api.action("inventory_pdf", items=[
-                {"kind": "battery", "name": "AA Batterie", "quantity": 3, "unit": "Stück",
-                 "devices": ["Example appliance"]},
+                battery,
                 {"kind": "material", "name": "Example filter", "quantity": 1.5, "unit": "pieces", "devices": []},
             ], query="", **selection)
             check(pdf["content_type"] == "application/pdf" and pdf["filename"].endswith(".pdf"), "PDF download metadata")
