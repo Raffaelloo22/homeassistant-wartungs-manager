@@ -1,20 +1,18 @@
 """Render a bounded, read-only inventory projection as a printable PDF."""
 from base64 import b64encode
 from io import BytesIO
+from decimal import Decimal
 from math import isfinite
 from pathlib import Path
 from threading import Lock
-from xml.sax.saxutils import escape
 
 import reportlab
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+from reportlab.pdfgen.canvas import Canvas
 
 _FONT_LOCK = Lock()
 _INK = colors.HexColor('#24333A')
@@ -68,94 +66,218 @@ def _fonts():
     with _FONT_LOCK:
         registered = set(pdfmetrics.getRegisteredFontNames())
         folder = Path(reportlab.__file__).parent / 'fonts'
-        for name, filename in (('WartungVera', 'Vera.ttf'), ('WartungVeraBold', 'VeraBd.ttf')):
+        for name, filename in (('WartungVera', 'Vera.ttf'),):
             if name not in registered:
                 pdfmetrics.registerFont(TTFont(name, str(folder / filename)))
 
 
-def _markup(text):
-    return escape(text).replace('\r\n', '\n').replace('\r', '\n').replace('\n', '<br/>')
+def _one_line(text):
+    return ' '.join(text.split())
 
 
 def _quantity(value):
     if value is None:
         return '—'
-    return format(value, '.8f').rstrip('0').rstrip('.') or '0'
+    if value == 0:
+        return '0'
+    text = str(value)
+    if 'e' in text.lower():
+        fixed = format(Decimal(text), 'f')
+        # Preserve the exact supplied decimal value without hundreds of zeros.
+        return fixed if len(fixed) <= 24 else text
+    return text[:-2] if text.endswith('.0') else text
+
+
+def _width(text, size=8):
+    return pdfmetrics.stringWidth(text, 'WartungVera', size)
+
+
+def _prefix(text, width):
+    low, high = 0, len(text)
+    while low < high:
+        middle = (low + high + 1) // 2
+        if _width(text[:middle]) <= width:
+            low = middle
+        else:
+            high = middle - 1
+    return text[:low].rstrip()
+
+
+def _fit(text, width):
+    text = _one_line(text)
+    if _width(text) <= width:
+        return text, False
+    if width < _width('…'):
+        return '', True
+    return _prefix(text, width - _width('…')) + '…', True
+
+
+def _device_text(devices, width):
+    names = [_one_line(name) for name in devices]
+    if not names:
+        return '—', False
+    if len(names) == 1:
+        return _fit(names[0], width)
+    if sum(_width(name) for name in names) + max(0, len(names) - 1) * _width(', ') <= width:
+        return ', '.join(names), False
+    shown = []
+    for name in names:
+        remaining = len(names) - len(shown) - 1
+        suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+        candidate = ', '.join([*shown, name, suffix])
+        if _width(candidate) > width:
+            break
+        shown.append(name)
+    remaining = len(names) - len(shown)
+    suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+    if shown:
+        return ', '.join([*shown, suffix]), True
+    # A shortened first name still represents one visible device.
+    remaining = len(names) - 1
+    suffix = '… (+' + str(remaining) + (' Gerät)' if remaining == 1 else ' Geräte)')
+    prefix = _prefix(names[0], max(0, width - _width(' ' + suffix)))
+    return (prefix + ' ' if prefix else '') + suffix, True
+
+
+def _logo(canvas):
+    """The existing brand/icon.svg geometry, embedded once as a reusable vector."""
+    canvas.beginForm('WartungsManagerLogo', 0, 0, 256, 256)
+    canvas.setFillColor(colors.HexColor('#147D8B'))
+    canvas.roundRect(12, 12, 232, 232, 56, stroke=0, fill=1)
+    canvas.setStrokeColor(colors.white)
+    canvas.setLineWidth(20)
+    canvas.setLineCap(1)
+    canvas.setLineJoin(1)
+    house = canvas.beginPath()
+    house.moveTo(166, 85)
+    for x, y in ((128, 52), (64, 107), (64, 193), (192, 193), (192, 147)):
+        house.lineTo(x, y)
+    canvas.drawPath(house, stroke=1, fill=0)
+    canvas.setFillColor(colors.white)
+    hexagon = canvas.beginPath()
+    hexagon.moveTo(192, 94)
+    for x, y in ((206, 102), (206, 118), (192, 126), (178, 118), (178, 102)):
+        hexagon.lineTo(x, y)
+    hexagon.close()
+    canvas.drawPath(hexagon, stroke=0, fill=1)
+    canvas.endForm()
 
 
 def build_inventory_pdf(payload, when):
-    """Return a PDF download without writing files or accessing a Home Assistant object."""
+    """Render one line per material without writes or access to a Home Assistant object."""
     data = validate_inventory_pdf(payload)
     _fonts()
-    output = BytesIO()
-    document = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm,
-                                 topMargin=19 * mm, bottomMargin=20 * mm,
-                                 title='Verbrauchsmaterial', author='Wartungs-Manager',
-                                 pageCompression=1)
-    normal = ParagraphStyle('WartungBody', fontName='WartungVera', fontSize=9,
-                            leading=13, textColor=_INK, splitLongWords=True)
-    muted = ParagraphStyle('WartungMuted', parent=normal, fontSize=8, leading=12, textColor=_MUTED)
-    title = ParagraphStyle('WartungTitle', parent=normal, fontName='WartungVeraBold',
-                           fontSize=23, leading=29, spaceAfter=6)
-    group_style = ParagraphStyle('WartungGroup', parent=normal, fontName='WartungVeraBold',
-                                 fontSize=12, leading=16, textColor=_PETROL,
-                                 spaceBefore=0, spaceAfter=0)
-    header = ParagraphStyle('WartungHeader', parent=normal, fontName='WartungVeraBold',
-                            fontSize=8, leading=11, textColor=_PETROL)
-    stock_style = ParagraphStyle('WartungStock', parent=normal, fontName='WartungVeraBold',
-                                 fontSize=11, leading=14, alignment=TA_RIGHT)
-    name_style = ParagraphStyle('WartungName', parent=normal, fontName='WartungVeraBold', alignment=TA_LEFT)
-    story = [Paragraph('Verbrauchsmaterial', title),
-             Paragraph('Stand: ' + when.strftime('%d.%m.%y · %H:%M') + ' · '
-                       + str(len(data['items'])) + ' Artikel', muted)]
+    page_width, page_height = A4
+    left, right = 12 * mm, page_width - 12 * mm
+    usable = right - left
+    # Keep the complete stock number; only its unit may be shortened.
+    stock_width = max(30 * mm, max((_width(_quantity(item['quantity'])) + 4 for item in data['items']), default=0))
+    name_width = 75 * mm
+    widths = [stock_width, name_width, usable - stock_width - name_width]
+    starts = [left, left + stock_width, left + stock_width + name_width]
+    rows, shortened = [], False
+    for item in data['items']:
+        amount = _quantity(item['quantity'])
+        unit, unit_short = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' ')))
+        stock = amount + (' ' + unit if unit else '')
+        name, name_short = _fit(item['name'], widths[1] - 8)
+        devices, devices_short = _device_text(item['devices'], widths[2] - 8)
+        shortened |= unit_short or name_short or devices_short
+        rows.append(dict(kind=item['kind'], stock=stock, name=name, devices=devices))
     filters = []
     if data['query']:
         filters.append('Suche: ' + data['query'])
     if data['assigned_only']:
         filters.append('Material ohne Gerätezuordnung ausgeblendet')
-    if filters:
-        story.append(Paragraph(_markup(' · '.join(filters)), muted))
-    story.append(Spacer(1, 5 * mm))
-    for kind, label in (('battery', 'Batterien'), ('material', 'Weitere Verbrauchsmaterialien')):
-        group = [item for item in data['items'] if item['kind'] == kind]
-        if not group:
-            continue
-        story.append(Spacer(1, 4 * mm))
-        rows = [[Paragraph(label + ' · ' + str(len(group)), group_style), '', ''],
-                [Paragraph('Bestand', header), Paragraph('Bezeichnung', header), Paragraph('Geräte', header)]]
-        for item in group:
-            amount = Paragraph(_markup(_quantity(item['quantity'])), stock_style)
-            quantity = [amount, Paragraph(_markup(item['unit']), muted)]
-            devices = ', '.join(item['devices']) if item['devices'] else 'Keine Gerätezuordnung'
-            rows.append([quantity, Paragraph(_markup(item['name']), name_style), Paragraph(_markup(devices), normal)])
-        table = LongTable(rows, colWidths=[23 * mm, 64 * mm, document.width - 87 * mm],
-                          repeatRows=2, hAlign='LEFT', splitByRow=1, splitInRow=1)
-        table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('SPAN', (0, 0), (-1, 0)),
-            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#E8F3F3')),
-            ('LINEBELOW', (0, 1), (-1, 1), 0.6, colors.HexColor('#8BBFC2')),
-            ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#F5F8F8')]),
-            ('LINEBELOW', (0, 2), (-1, -1), 0.3, colors.HexColor('#E0E7E9')),
-            ('LEFTPADDING', (0, 0), (-1, -1), 7), ('RIGHTPADDING', (0, 0), (-1, -1), 7),
-            ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ]))
-        story.append(table)
-    if not data['items']:
-        story.append(Paragraph('Keine Artikel für die gewählte Ansicht.', normal))
+    filter_text, filter_short = _fit(' · '.join(filters), usable)
+    shortened |= filter_short
+    output = BytesIO()
+    canvas = Canvas(output, pagesize=A4, pageCompression=1)
+    canvas.setTitle('Verbrauchsmaterial')
+    canvas.setAuthor('Wartungs-Manager')
+    _logo(canvas)
+    page_number, y = 0, 0
+    row_height, header_height, bottom = 14, 16, 20 * mm
 
-    def footer(canvas, doc):
+    def new_page():
+        nonlocal page_number, y
+        if page_number:
+            canvas.showPage()
+        page_number += 1
+        y = page_height - 12 * mm
         canvas.saveState()
         canvas.setStrokeColor(colors.HexColor('#D7E0E3'))
-        canvas.setLineWidth(0.5)
-        canvas.line(document.leftMargin, 15 * mm, A4[0] - document.rightMargin, 15 * mm)
+        canvas.setLineWidth(0.4)
+        canvas.line(left, 17 * mm, right, 17 * mm)
+        logo_size = 8 * mm
+        canvas.translate(left, 16 * mm)
+        canvas.scale(logo_size / 256, -logo_size / 256)
+        canvas.doForm('WartungsManagerLogo')
+        canvas.restoreState()
         canvas.setFont('WartungVera', 7)
         canvas.setFillColor(_MUTED)
-        canvas.drawString(document.leftMargin, 10 * mm, 'Wartungs-Manager · Verbrauchsmaterial')
-        canvas.drawRightString(A4[0] - document.rightMargin, 10 * mm, 'Seite ' + str(doc.page))
-        canvas.restoreState()
+        canvas.drawString(left + 10 * mm, 10.7 * mm, 'Wartungs-Manager')
+        canvas.drawRightString(right, 10.7 * mm, 'Seite ' + str(page_number))
+        if page_number == 1:
+            canvas.setFillColor(_INK)
+            canvas.setFont('WartungVera', 17)
+            canvas.drawString(left, y - 17, 'Verbrauchsmaterial')
+            y -= 33
+            canvas.setFont('WartungVera', 8)
+            canvas.setFillColor(_MUTED)
+            canvas.drawString(left, y, 'Stand: ' + when.strftime('%d.%m.%y · %H:%M')
+                              + ' · ' + str(len(rows)) + ' Artikel')
+            y -= 13
+            if filter_text:
+                canvas.drawString(left, y, filter_text)
+                y -= 13
+            if shortened:
+                canvas.drawString(left, y, 'Lange Angaben werden mit … gekürzt.')
+                y -= 13
+            y -= 4
 
-    document.build(story, onFirstPage=footer, onLaterPages=footer)
+    def column_header():
+        nonlocal y
+        canvas.setFillColor(colors.HexColor('#E8F3F3'))
+        canvas.rect(left, y - header_height, usable, header_height, stroke=0, fill=1)
+        canvas.setFont('WartungVera', 8)
+        canvas.setFillColor(_PETROL)
+        canvas.drawRightString(starts[1] - 2, y - 11, 'Bestand')
+        canvas.drawString(starts[1] + 4, y - 11, 'Bezeichnung')
+        canvas.drawString(starts[2] + 4, y - 11, 'Geräte')
+        y -= header_height
+
+    new_page()
+    for kind, label in (('battery', 'Batterien'), ('material', 'Weitere Verbrauchsmaterialien')):
+        group = [row for row in rows if row['kind'] == kind]
+        if not group:
+            continue
+        # A group title is printed once, together with its header and first row.
+        if y - (22 + header_height + row_height) < bottom:
+            new_page()
+        canvas.setFont('WartungVera', 9)
+        canvas.setFillColor(_PETROL)
+        canvas.drawString(left, y - 13, label + ' · ' + str(len(group)))
+        y -= 22
+        column_header()
+        for index, row in enumerate(group):
+            if y - row_height < bottom:
+                new_page()
+                column_header()
+            if index % 2:
+                canvas.setFillColor(colors.HexColor('#F5F8F8'))
+                canvas.rect(left, y - row_height, usable, row_height, stroke=0, fill=1)
+            canvas.setFont('WartungVera', 8)
+            canvas.setFillColor(_INK)
+            canvas.drawRightString(starts[1] - 2, y - 10, row['stock'])
+            canvas.drawString(starts[1] + 4, y - 10, row['name'])
+            canvas.drawString(starts[2] + 4, y - 10, row['devices'])
+            y -= row_height
+        y -= 8
+    if not rows:
+        canvas.setFont('WartungVera', 8)
+        canvas.setFillColor(_MUTED)
+        canvas.drawString(left, y - 10, 'Keine Artikel für die gewählte Ansicht.')
+    canvas.save()
     return dict(filename='Verbrauchsmaterial-' + when.strftime('%d.%m.%y') + '.pdf',
                 content_type='application/pdf', data=b64encode(output.getvalue()).decode('ascii'))

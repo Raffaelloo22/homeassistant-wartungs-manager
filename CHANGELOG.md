@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 1.2.6
+
+- PDF-Lagerliste verdichtet: eine Schriftfamilie und eine feste Zeile je Artikel, Bestand und Einheit nebeneinander.
+- Lange Angaben werden sichtbar gekürzt; Gruppentitel erscheinen nur einmal. Seitenumbrüche teilen keine Materialzeilen mehr.
+- Wartungs-Manager-Logo in der Fusszeile jeder PDF-Seite.
+
 ## 1.2.5
 
 - PDF-Export der gefilterten Verbrauchsmaterial-Lagerliste, mit Titel, Datum, Gruppen und Seitenzahlen.
