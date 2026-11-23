@@ -156,10 +156,10 @@ class WartungPanel extends HTMLElement {
   inventoryMatches(item){return (!this.inventoryAssignedOnly||item.devices.length>0)&&this.searchWordsMatch(this.inventoryQuery||'',[item.name,item.id,item.unit,item.notes,this.safeShopUrl(item.shop_url),...item.devices.flatMap(device=>[device.name,device.area,device.manufacturer,device.model])]);}
   inventoryUsage(item){
     if(item.kind!=='battery')return this.usageDeviceLinks(item.devices.map(device=>device.id),{inventory:true,key:item.id});
-    return '<details class="small inventory-usage" data-preserve-key="battery-usage:'+E(item.id)+'"><summary><span class="inventory-usage-desktop">Geräte anzeigen</span><span class="inventory-usage-mobile">'+item.devices.length+' Gerät'+(item.devices.length===1?'':'e')+'</span></summary><div class="usage-device-tags">'+(item.devices.map(device=>this.button('record',this.batteryUsageDeviceLabel(device,item.id),device.id)).join('')||'Kein aktives Gerät zugeordnet')+'</div></details>';
+    return '<details class="small inventory-usage" data-preserve-key="battery-usage:'+E(item.id)+'"><summary><span class="inventory-usage-desktop">Geräte anzeigen</span><span class="inventory-usage-mobile">'+E(this.inventoryBatteryUsageText(item.devices,item.id))+'</span></summary><div class="usage-device-tags">'+(item.devices.map(device=>this.button('record',this.batteryUsageDeviceLabel(device,item.id),device.id)).join('')||'Kein aktives Gerät zugeordnet')+'</div></details>';
   }
   inventoryCard(item){
-    const battery=item.kind==='battery',meta=battery?'Benötigt für '+item.devices.length+' Gerät(e)':E(item.unit)+' · Nachkaufen ab '+E(item.threshold);
+    const battery=item.kind==='battery',meta=battery?E(this.inventoryBatteryUsageText(item.devices,item.id)):E(item.unit)+' · Nachkaufen ab '+E(item.threshold);
     return '<div class="row inventory-item"><div class="info"><strong>'+E(item.name)+'</strong><div class="meta'+(battery?' inventory-device-count':'')+'">'+meta+'</div>'+this.inventoryUsage(item)+this.inventoryNotes(item.notes)+'</div>'+this.inventoryControls(item.kind,item.id,item.quantity,battery?item.id:item.name,item.unit,{shopUrl:item.shop_url})+'</div>';
   }
   inventoryListRow(item){
@@ -469,11 +469,20 @@ dialog{background:#283239;color:#f4f6f6;border:1px solid #ffffff15;border-radius
     if(el._wartungHTML===html)return;const state=this.captureBodyState();el.innerHTML=html;el._wartungHTML=html;this.bindCategoryDrag();this.bindEventTypeDrag();this.bindBatteryThresholdControl();this.bindInlineSettingsForms();for(const menu of el.querySelectorAll('.task-menu'))menu.ontoggle=()=>{if(menu.open)for(const other of el.querySelectorAll('.task-menu[open]'))if(other!==menu)other.open=false;if(!menu.open)this.scheduleBackgroundFlush();};this.restoreBodyState(state);
   }
   updateDeviceStatuses(){const elements=this.shadowRoot.querySelectorAll?.('[data-task-count-device]')||[],counts=elements.length?this.deviceTaskCounts():null;for(const el of elements){const device=this.data.devices[el.dataset.taskCountDevice];if(device){const text=this.deviceTaskCount(device,counts);if(el.textContent!==text)el.textContent=text;el.hidden=!text;}}for(const el of this.shadowRoot.querySelectorAll?.('[data-inline-status-device]')||[]){const d=this.data.devices[el.dataset.inlineStatusDevice];if(d){const html=this.inlineStatus(d);if(el.innerHTML!==html)el.innerHTML=html;}}}
-  batteryUsageDeviceLabel(device,type){
+  batteryUsageQuantity(device,type){
     const raw=String(device.battery_type||'');
     const quantity=batteryType(raw)===type?Number(device.battery_quantity??raw.match(/^(\d+)\s*[×x]/)?.[1]??1):null;
-    const text=Number.isInteger(quantity)&&quantity>0?quantity+' Batterie'+(quantity===1?'':'n'):'Anzahl nicht erfasst';
-    return device.name+' · '+text;
+    return Number.isInteger(quantity)&&quantity>0?quantity:null;
+  }
+  batteryUsageDeviceLabel(device,type){
+    const quantity=this.batteryUsageQuantity(device,type);
+    return device.name+' · '+(quantity!==null?quantity+' Batterie'+(quantity===1?'':'n'):'Anzahl nicht erfasst');
+  }
+  inventoryBatteryUsageText(devices,type){
+    const quantities=devices.map(device=>this.batteryUsageQuantity(device,type)),known=quantities.filter(quantity=>quantity!==null),total=known.reduce((sum,quantity)=>sum+quantity,0),missing=quantities.length-known.length;
+    const count=devices.length+' Gerät'+(devices.length===1?'':'e');
+    if(missing&&!known.length)return count+' · Batterieanzahl nicht erfasst';
+    return count+(devices.length===1?' benötigt ':' benötigen ')+(missing?'mindestens ':'')+total+' Batterie'+(total===1?'':'n')+(missing?' · Anzahl bei '+missing+' Gerät'+(missing===1?'':'en')+' nicht erfasst':'');
   }
   batteryInventory(){
     const stock=this.data.settings?.battery_inventory||{};
