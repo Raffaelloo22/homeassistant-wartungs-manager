@@ -19,6 +19,8 @@
   "integration_type": "service",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues",
-  "requirements": [],
-  "version": "1.2.4"
+  "requirements": [
+    "reportlab==5.1.0"
+  ],
+  "version": "1.2.5"
 }

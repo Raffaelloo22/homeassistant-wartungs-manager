@@ -212,5 +212,30 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   await p.act('addbatterytype');assert.equal(dialog.footer,'','a new battery type has nothing to remove');
   assert.deepEqual(plain(p.data),before);assert.equal(writes.length,0);
  }
+ {
+  const {p}=inventory();let dialog,writes=[];p.modal=(title,html,save)=>dialog={title,html,save};p.change=async(action,payload)=>writes.push({action,payload:plain(payload)});p.usageDeviceEditor=()=>'';p.readRelatedDevices=()=>[];
+  p.data.settings.battery_no_restock=['AA'];const before=plain(p.data);
+  assert(!p.inventoryControls('battery','AA',3,'AA').includes('data-action="requestpurchase"'),'disabled battery types have no reorder action in cards or mobile menus');
+  assert(p.inventoryControls('battery','CR2032',0,'CR2032').includes('data-action="requestpurchase"'),'other battery types remain reorderable');
+  assert(p.inventoryControls('material','AA',3,'Material AA').includes('data-action="requestpurchase"'),'same-name general materials are unaffected');
+  await assert.rejects(()=>p.act('requestpurchase','battery:AA'),/Nachkaufen deaktiviert/);assert.equal(writes.length,0,'a stale reorder control cannot submit a disabled type');
+  await p.act('editbatterytype','AA');assert(dialog.html.includes('fields paired-fields battery-restock-fields'));assert(dialog.html.includes('name="no_restock" checked>'));assert(dialog.html.includes('Nicht nachkaufen'));
+  await dialog.save(new Map([['battery_type','AA'],['quantity','3'],['threshold','2'],['no_restock','on'],['notes','Akku']]));assert.equal(writes.at(-1).payload.no_restock,true);assert.equal(writes.at(-1).payload.threshold,2,'threshold remains saved while restocking is disabled');
+  await dialog.save(new Map([['battery_type','AA'],['quantity','3'],['threshold','2'],['notes','Akku']]));assert.equal(writes.at(-1).payload.no_restock,false,'clearing the checkbox explicitly re-enables restocking');
+  assert.deepEqual(plain(p.data),before,'opening or editing the form does not mutate local data before the API saves');
+ }
+ {
+  const {p}=inventory(),before=plain(p.data);p.inventoryAssignedOnly=true;
+  const payload=plain(p.inventoryPdfPayload());assert.deepEqual(payload.items.map(item=>item.name),['AA Batterie','CR2032 Batterie','Wasserfilter'],'PDF uses the same filtered and alphabetically grouped rows as the list');
+  assert.deepEqual(payload.items[0].devices,['Zoé Küchensensor']);assert.equal(payload.items[2].quantity,null,'unknown stocks remain unknown');assert.equal(payload.assigned_only,true);
+  assert(!JSON.stringify(payload).includes('example.invalid')&&!JSON.stringify(payload).includes('Trocken'),'export contains stock, names and devices rather than shop links or notes');
+  p.inventoryQuery='salz';assert.equal(p.inventoryPdfPayload().items.length,0);p.inventoryAssignedOnly=false;assert.equal(p.inventoryPdfPayload().items[0].quantity,-1.5,'negative and decimal stock values remain exact');p.inventoryQuery='';
+  const state={},button={setAttribute:(key,value)=>state[key]=value,removeAttribute:key=>delete state[key]};p.shadowRoot.querySelector=selector=>selector==='[data-action=inventorypdf]'?button:null;let resolve,requests=[],saved=[],notice;
+  p.api=(action,request)=>{requests.push({action,request:plain(request)});return new Promise(done=>resolve=done);};p.saveInventoryPdf=result=>saved.push(result);p.notice=message=>notice=message;
+  const download=p.act('inventorypdf');assert(button.disabled&&state['aria-busy']==='true');await p.act('inventorypdf');assert.equal(requests.length,1,'repeated clicks share a single read-only PDF request');
+  assert.equal(requests[0].action,'inventory_pdf');assert(!('revision' in requests[0].request));resolve({filename:'Verbrauchsmaterial.pdf',content_type:'application/pdf',data:'JVBERi0='});await download;
+  assert.equal(saved.length,1);assert(!button.disabled&&!state['aria-busy']);assert(notice.includes('PDF'));assert.equal(p.inventoryLayout,'cards','downloading PDF does not replace the current view');assert.deepEqual(plain(p.data),before,'PDF export never changes stock or associations');
+  p.api=async()=>{throw Error('PDF nicht verfügbar');};await assert.rejects(()=>p.act('inventorypdf'),/PDF nicht verfügbar/);assert(!button.disabled&&!p.inventoryPdfPending,'failures release the button for retry');
+ }
  console.log('PASS: Inventarsuche und Listenumschalter bleiben unabhängig und ohne Datenmutation; sichere Shop-Links, Mengen, Aktionen und Formular-/Bestandspayloads bleiben korrekt.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

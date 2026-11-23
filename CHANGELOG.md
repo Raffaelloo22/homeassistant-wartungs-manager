@@ -1,5 +1,11 @@
 # Änderungsverlauf
 
+## 1.2.5
+
+- PDF-Export der gefilterten Verbrauchsmaterial-Lagerliste, mit Titel, Datum, Gruppen und Seitenzahlen.
+
+- Option „Nicht nachkaufen“ für Batterietypen: automatische Nachkaufaufträge und Nachkaufaktion ausblenden, beispielsweise für Akkus. Die Nachkaufgrenze bleibt für ein späteres Wiedereinschalten erhalten.
+
 ## 1.2.4
 
 - Batterietyp im Geräteformular aus den erfassten Typen auswählen; bestehende Sondertypen bleiben erhalten.

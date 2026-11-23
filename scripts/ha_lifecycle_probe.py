@@ -6,6 +6,7 @@ Never point this probe at a real household: it creates only synthetic fixtures.
 from __future__ import annotations
 
 import asyncio
+from base64 import b64decode
 import json
 from pathlib import Path
 import secrets
@@ -175,6 +176,16 @@ async def assert_snapshot(api, expected, *, shop_urls):
     check("wartung" in panels and panels["wartung"]["require_admin"], "Admin-only panel registered")
     source = await api.request("GET", "/ha_wartung/panel.js")
     check("ha-wartung-panel" in source, "Bundled frontend is served")
+    version = snapshot.get("version")
+    if version and tuple(map(int, version.split('.'))) >= (1, 2, 5):
+        pdf = await api.action("inventory_pdf", items=[
+            {"kind": "battery", "name": "AA Batterie", "quantity": 3, "unit": "Stück",
+             "devices": ["Example appliance"]},
+            {"kind": "material", "name": "Example filter", "quantity": 1.5, "unit": "pieces", "devices": []},
+        ], query="", assigned_only=False)
+        check(pdf["content_type"] == "application/pdf" and pdf["filename"].endswith(".pdf"), "PDF download metadata")
+        check(b64decode(pdf["data"], validate=True).startswith(b"%PDF-"), "Real executor returns a PDF document")
+        check(await api.action("export") == expected, "PDF download must not change records or revision")
 
 
 async def bootstrap(session):
@@ -212,6 +223,8 @@ async def bootstrap(session):
     viewer = API(session, await access_token(anonymous, login["result"]))
     await viewer.ws({"type": DOMAIN + "/request", "action": "get", "payload": {}}, expect_error="unauthorized")
     await viewer.ws({"type": DOMAIN + "/request", "action": "save_device", "payload": {"value": {"name": "Must not be saved"}}}, expect_error="unauthorized")
+    if tuple(map(int, version.split('.'))) >= (1, 2, 5):
+        await viewer.ws({"type": DOMAIN + "/request", "action": "inventory_pdf", "payload": {"items": []}}, expect_error="unauthorized")
     check(not (await api.action("export"))["devices"], "Rejected request did not mutate storage")
     helper = await api.ws({"type": "input_number/create", "name": "Release battery threshold", "min": 0,
                            "max": 100, "step": 1, "mode": "slider", "initial": 31})

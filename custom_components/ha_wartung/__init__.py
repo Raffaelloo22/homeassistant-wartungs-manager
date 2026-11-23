@@ -19,6 +19,7 @@ from homeassistant.helpers import config_validation as cv
 from .onboarding import capture_preview, apply_capture
 from .materials import material_info, consume, return_event_stock
 from .battery_edit import edit_battery_type
+from .inventory_pdf import build_inventory_pdf
 from .diagnostics import inspect_directory
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
@@ -29,7 +30,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.4'
+VERSION = '1.2.5'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -71,14 +72,27 @@ def validate_material_device_ids(data, ids):
     return list(ids)
 
 
+def remove_disabled_battery_shopping(data):
+    """Remove suppressed open automatic orders, retaining manual and paid orders."""
+    disabled = set(data.get('settings', {}).get('battery_no_restock', []))
+    booked = {target for target in data.get('operations', {}).values() if isinstance(target, str)}
+    for identity, item in list(data['shopping'].items()):
+        if item.get('battery_inventory_auto') and not item.get('done') and item.get('battery_type') in disabled:
+            if identity in booked or any(isinstance(key, str) and key.startswith('purchased_') for key in item):
+                item['done'] = True
+            else:
+                del data['shopping'][identity]
+
+
 def sync_battery_shopping(data, previous):
+    remove_disabled_battery_shopping(data)
     settings = data.get('settings', {})
     stocks = settings.get('battery_inventory', {})
-    hidden = set(settings.get('battery_inventory_hidden_types', []))
+    hidden = set(settings.get('battery_inventory_hidden_types', [])) | set(settings.get('battery_no_restock', []))
     old = previous.get('settings', {}).get('battery_inventory', {})
     shopping = data['shopping']
     for identity, item in list(shopping.items()):
-        if item.get('battery_inventory_auto') and (item.get('battery_type') not in stocks or item.get('battery_type') in hidden or re.search(r'fest.*verbaut', item.get('battery_type', ''), re.I)):
+        if item.get('battery_inventory_auto') and (item.get('battery_type') not in stocks or item.get('battery_type') in settings.get('battery_inventory_hidden_types', []) or re.search(r'fest.*verbaut', item.get('battery_type', ''), re.I)):
             del shopping[identity]
     for kind, quantity in stocks.items():
         if kind in hidden or re.search(r'fest.*verbaut', kind, re.I):
@@ -88,7 +102,7 @@ def sync_battery_shopping(data, previous):
             existing = shopping.get(identity, {})
             shopping[identity] = dict(existing, id=identity, name=f'Batterien {kind} nachkaufen',
                 battery_inventory_auto=True, battery_type=kind, quantity_remaining=quantity,
-                done=existing.get('done', False) if old.get(kind) == quantity and previous.get('settings', {}).get('battery_inventory_thresholds', {}).get(kind, 1) == settings.get('battery_inventory_thresholds', {}).get(kind, 1) else False)
+                done=existing.get('done', False) if kind not in previous.get('settings', {}).get('battery_no_restock', []) and old.get(kind) == quantity and previous.get('settings', {}).get('battery_inventory_thresholds', {}).get(kind, 1) == settings.get('battery_inventory_thresholds', {}).get(kind, 1) else False)
         elif identity in shopping:
             shopping[identity].update(done=True, quantity_remaining=quantity)
 
@@ -154,6 +168,7 @@ class Directory:
         self.data.setdefault('questions', [])
         self.data.setdefault('samples', {})
         cleaned = apply_ha_device_areas(engine.sanitize_directory(deepcopy(self.data)), self.registry(areas_only=True))
+        remove_disabled_battery_shopping(cleaned)
         if cleaned != self.data:
             cleaned['revision'] += 1
             await self.store.async_save(cleaned)
@@ -303,6 +318,8 @@ class Directory:
                 raise ValueError('Der Sensor gehört nicht zum ausgewählten HA-Gerät.')
 
     async def execute(self, action, p):
+        if action == 'inventory_pdf':
+            return await self.hass.async_add_executor_job(build_inventory_pdf, p, dt_util.now())
         if action == 'get':
             return project_directory(self.snapshot(), p)
         if action == 'registry':
@@ -511,6 +528,8 @@ class Directory:
                 identity = value.get('id') or str(uuid4())
                 existing = new[collection].get(identity,{})
                 value = {**existing, **value, 'id':identity}
+                if collection == 'shopping' and value.get('battery_inventory_auto') and value.get('battery_type') in new.get('settings', {}).get('battery_no_restock', []):
+                    raise ValueError('Für diesen Batterietyp ist Nachkaufen deaktiviert.')
                 if collection == 'shopping' and 'notes' in p['value']:
                     notes = p['value']['notes']
                     if not isinstance(notes, str) or len(notes) > 20000:
@@ -765,7 +784,7 @@ class Directory:
                 new['operations'][identity] = item['id']
                 result['id'] = item['id']
             elif action == 'edit_battery_type':
-                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'), **({'shop_url':p['shop_url']} if 'shop_url' in p else {}))
+                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'), **({'shop_url':p['shop_url']} if 'shop_url' in p else {}), **({'no_restock':p['no_restock']} if 'no_restock' in p else {}))
             elif action == 'battery_inventory':
                 stocks = p.get('stocks', {})
                 removed = p.get('remove_types', [])
@@ -773,13 +792,16 @@ class Directory:
                 thresholds = p.get('thresholds', {})
                 notes = p.get('notes', {})
                 shop_urls = p.get('shop_urls', {})
+                no_restock = p.get('no_restock', {})
+                if not isinstance(no_restock, dict) or len(no_restock) > 100 or any(type(value) is not bool for value in no_restock.values()):
+                    raise ValueError('Ungültige Nachkaufeinstellungen für Batterien.')
                 if not isinstance(shop_urls, dict) or len(shop_urls) > 100:
                     raise ValueError('Ungültige Batterie-Shop-Links.')
                 if not isinstance(notes, dict) or len(notes) > 100 or any(not isinstance(text, str) or len(text) > 20000 for text in notes.values()):
                     raise ValueError('Ungültige Batterie-Notizen.')
-                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes or shop_urls):
+                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes or shop_urls or no_restock):
                     raise ValueError('Batterietypen und Bestände fehlen.')
-                for kind in [*stocks, *removed, *device_links, *thresholds, *notes, *shop_urls]:
+                for kind in [*stocks, *removed, *device_links, *thresholds, *notes, *shop_urls, *no_restock]:
                     if not isinstance(kind, str) or not kind.strip() or len(kind) > 160:
                         raise ValueError('Ungültiger Batterietyp.')
                 for quantity in stocks.values():
@@ -794,6 +816,16 @@ class Directory:
                         raise ValueError('Bitte eine gültige Nachkauf-Schwelle für einen vorhandenen Batterietyp eingeben.')
                 settings['battery_inventory_thresholds'] = {kind:value for kind,value in dict(settings.get('battery_inventory_thresholds', {}), **thresholds).items() if kind not in removed}
                 settings['battery_inventory'] = updated
+                if 'no_restock' in p or 'battery_no_restock' in settings:
+                    disabled = set(settings.get('battery_no_restock', [])) - set(removed)
+                    for kind, suppress in no_restock.items():
+                        if kind not in updated:
+                            raise ValueError('Batterietyp für die Nachkaufeinstellung wurde nicht gefunden.')
+                        if suppress:
+                            disabled.add(kind)
+                        else:
+                            disabled.discard(kind)
+                    settings['battery_no_restock'] = sorted(disabled)
                 if any(kind not in updated for kind in notes):
                     raise ValueError('Batterietyp für Notizen wurde nicht gefunden.')
                 settings['battery_notes'] = {kind:text for kind,text in dict(settings.get('battery_notes', {}), **notes).items() if kind not in removed}
@@ -848,12 +880,13 @@ class Directory:
                 if p.get('confirmed') is not True or p.get('confirmation') != 'DATEN ZURÜCKSETZEN':
                     raise ValueError('Das endgültige Löschen der Geräte- und Aufgabendaten muss ausdrücklich bestätigt werden.')
                 settings = deepcopy(new.get('settings', {}))
-                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'battery_shop_urls', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
+                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'battery_shop_urls', 'battery_no_restock', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
                     settings.pop(key, None)
                 new = engine.blank()
                 new.update(settings=settings, questions=[], samples={})
             elif action == 'restore':
                 new = engine.validate_data(deepcopy(p['value']))
+                remove_disabled_battery_shopping(new)
                 new['revision'] = self.data['revision'] + 1
             elif action == 'bulk':
                 for selected in p['devices']:
@@ -876,7 +909,7 @@ class Directory:
                         new['rules'][rule['id']] = rule
             else:
                 raise ValueError('Unbekannte Aktion.')
-            if action in ('battery_replacement', 'battery_purchase', 'normalize_battery_devices', 'edit_battery_type') or (action == 'battery_inventory' and (p.get('stocks') or p.get('remove_types') or p.get('thresholds'))) or (action in ('delete_log', 'undo_completion') and movement):
+            if action in ('battery_replacement', 'battery_purchase', 'normalize_battery_devices', 'edit_battery_type') or (action == 'battery_inventory' and (p.get('stocks') or p.get('remove_types') or p.get('thresholds') or p.get('no_restock'))) or (action in ('delete_log', 'undo_completion') and movement):
                 sync_battery_shopping(new, self.data)
             if material_movement and material_movement['kind'] == 'battery':
                 sync_battery_shopping(new, self.data)
