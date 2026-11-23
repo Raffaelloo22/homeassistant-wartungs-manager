@@ -23,12 +23,17 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   const {p}=inventory(),nodes=new Map(),root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(){}};
   for(const selector of ['#search','#clearsearch','#categoryfilter','#area','#taskperiod'])nodes.set(selector,{value:'',hidden:false,focus(){this.focused=true;}});
   p.shadowRoot=root;let bodies=0;p.body=()=>bodies++;p.renderCompletionUndo=()=>{};
-  p.draw();assert(root.innerHTML.includes('<div class="toolbar inventory-toolbar" >'),'inventory search, count and layout share one toolbar');
+  p.draw();assert(root.innerHTML.includes('<div class="toolbar inventory-toolbar" >'),'inventory search, count, assignment and layout share one toolbar');
   assert(root.innerHTML.includes('placeholder="Verbrauchsmaterial suchen"'));assert(root.innerHTML.includes('aria-label="Suchbegriff löschen"'));
-  assert(root.innerHTML.indexOf('class="searchbox"')<root.innerHTML.indexOf('id="inventory-count"')&&root.innerHTML.indexOf('id="inventory-count"')<root.innerHTML.indexOf('id="inventory-layout"'),'search, count and layout switch appear in that order in the common toolbar');
+  const order=['class="searchbox"','id="inventory-count"','class="inventory-assignment-filter"','id="inventory-layout"'].map(marker=>root.innerHTML.indexOf(marker));
+  assert(order.every((position,index)=>position>=0&&(!index||order[index-1]<position)),'search, count, assignment and layout switch appear in that order in the common toolbar');
   assert(root.innerHTML.includes('data-action="inventorylayout" data-id="cards"'));assert(root.innerHTML.includes('data-action="inventorylayout" data-id="list"'));
   const input=nodes.get('#search');input.oninput({target:{value:'zoe'}});assert.equal(p.inventoryQuery,'zoe');assert.equal(bodies,2,'typing filters immediately through the existing body renderer');
   await p.act('clearsearch');assert.equal(p.inventoryQuery,'');assert.equal(input.value,'');assert(input.focused);assert(nodes.get('#clearsearch').hidden);
+  for(const tab of ['tasks','devices','log','settings','batteries']){
+   p.tab=tab;p.draw();const label=root.innerHTML.indexOf('id="inventory-assignment-label"'),start=root.innerHTML.lastIndexOf('<div ',label),wrapper=root.innerHTML.slice(start,root.innerHTML.indexOf('>',start)+1);
+   assert.equal(/\shidden(?:\s|>)/.test(wrapper),tab!=='batteries','the inventory assignment wrapper is visible only in its own view: '+tab);
+  }
  }
  {
   const {p}=inventory(),counter={textContent:'4 Artikel'},attributes=[{},{}],cards={setAttribute:(key,value)=>attributes[0][key]=value},list={setAttribute:(key,value)=>attributes[1][key]=value};
@@ -60,10 +65,10 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
  }
  {
   const {p,body,toolbar}=inventory(),before=plain(p.data);
-  p.body();assert.deepEqual(toolbar.at(-1),{count:'4 Artikel',list:false});assert(body.innerHTML.includes('device-grid'));assert(body.innerHTML.includes('inventory-intro'),'cards retain their stock explanation');assert(!body.innerHTML.includes('inventory-view-switch'),'the layout toolbar is not duplicated in the body');
+  p.body();assert.deepEqual(toolbar.at(-1),{count:'4 Artikel',list:false});assert(body.innerHTML.includes('device-grid'));assert(!body.innerHTML.includes('inventory-intro')&&!body.innerHTML.includes('Neue Artikel starten mit Bestand 1')&&!body.innerHTML.includes('Negative Bestände zeigen fehlende Mengen an'),'cards omit the removed inventory explanation');assert(!body.innerHTML.includes('inventory-view-switch'),'the layout toolbar is not duplicated in the body');
   p.filterChanged('inventoryQuery','wasser');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert(body.innerHTML.includes('Wasserfilter'));assert(!body.innerHTML.includes('Entkalkersalz'));
   await p.act('inventorylayout','list');assert.equal(p.inventoryLayout,'list');assert.equal(p.inventoryQuery,'wasser');
-  assert.deepEqual([...body.innerHTML.matchAll(/role="list" aria-label="([^"]+)"/g)].map(match=>match[1]),['Weitere Verbrauchsmaterialien'],'only the group containing the search result is shown');assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,1);assert(body.innerHTML.includes('Weitere Verbrauchsmaterialien<span class="tag count-tag">1</span>'),'group counts follow the filtered rows');assert(!body.innerHTML.includes('inventory-intro'),'the stock explanation is hidden in the compact list');
+  assert.deepEqual([...body.innerHTML.matchAll(/role="list" aria-label="([^"]+)"/g)].map(match=>match[1]),['Weitere Verbrauchsmaterialien'],'only the group containing the search result is shown');assert.equal((body.innerHTML.match(/role="listitem"/g)||[]).length,1);assert(body.innerHTML.includes('Weitere Verbrauchsmaterialien<span class="tag count-tag">1</span>'),'group counts follow the filtered rows');assert(!body.innerHTML.includes('inventory-intro')&&!body.innerHTML.includes('Neue Artikel starten mit Bestand 1')&&!body.innerHTML.includes('Negative Bestände zeigen fehlende Mengen an'),'the compact list also omits the removed inventory explanation');
   assert.equal(toolbar.at(-1).list,true);
   assert(body.innerHTML.includes('?')&&body.innerHTML.includes('Stück'),'unknown stock remains visible as text');
   assert(!body.innerHTML.includes('Bestand unbekannt Stück ändern'));assert(!body.innerHTML.includes('Nachkaufen ab'));assert(!body.innerHTML.includes('Für die Küche'),'notes remain searchable without expanding the compact stock list');
@@ -157,7 +162,7 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   const root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(type,handler){listeners[type]=handler;}};p.shadowRoot=root;p.renderCompletionUndo=()=>{};const before=plain(p.data);
   const nativeSync=Object.getPrototypeOf(p).syncInventoryToolbar;p.syncInventoryToolbar=(count,list)=>{toolbar.push({count,list});nativeSync.call(p,count,list);};
   p.draw();assert(root.innerHTML.includes('id="inventory-assignment"'));assert(root.innerHTML.includes('Gerätezuordnung:'));assert(root.innerHTML.includes('role="group" aria-labelledby="inventory-assignment-label"'));assert(!root.innerHTML.includes('inventory-assigned-only'));
-  assert(root.innerHTML.indexOf('class="toolbar inventory-toolbar"')<root.innerHTML.indexOf('id="inventory-assignment"')&&root.innerHTML.indexOf('id="inventory-assignment"')<root.innerHTML.indexOf('id="body"'),'filter is outside the changing inventory body and below the search toolbar');
+  assert(root.innerHTML.indexOf('id="inventory-count"')<root.innerHTML.indexOf('id="inventory-assignment"')&&root.innerHTML.indexOf('id="inventory-assignment"')<root.innerHTML.indexOf('id="inventory-layout"')&&root.innerHTML.indexOf('id="inventory-layout"')<root.innerHTML.indexOf('id="body"'),'assignment controls share the toolbar between article count and layout switch, outside the changing body');
   for(const [mode,label] of [['all','Alle'],['with','mit'],['without','ohne']])assert(root.innerHTML.includes('data-action="inventoryassignment" data-id="'+mode+'" type="button" aria-pressed="'+(mode==='all')+'">'+label+'</button>'));
   const markup=root.innerHTML,click=mode=>{const button=nodes.get('#inventory-assignment [data-id="'+mode+'"]');root.activeElement=button;listeners.click({target:{closest:()=>button}});assert.equal(root.activeElement,button,'the selected assignment button keeps focus');assert.equal(root.innerHTML,markup,'filter clicks never rebuild the toolbar or assignment group');};
   click('with');assert.equal(p.inventoryAssignment,'with');assert.equal(toolbar.at(-1).count,'3 von 4 Artikeln');assert(!body.innerHTML.includes('Entkalkersalz'));assert.equal(states.with['aria-pressed'],'true');assert.equal(states.all['aria-pressed'],'false');

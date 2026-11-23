@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 1.2.8
+
+- Hinweistext im Verbrauchsmaterial entfernt.
+- Gerätezuordnung direkt rechts neben die Artikelanzahl in die gemeinsame Filterleiste verschoben; auf schmalen Bildschirmen passt sich die Zeile an.
+
 ## 1.2.7
 
 - Zuordnungsfilter „Gerätezuordnung: Alle | mit | ohne“ für Kacheln, Liste und PDF; der PDF-Export berücksichtigt die Auswahl zusätzlich auf der Serverseite.
