@@ -24,6 +24,10 @@ def check(value, message):
         raise AssertionError(message)
 
 
+class AuthenticationError(AssertionError):
+    """The server rejected a token; retrying startup cannot repair it."""
+
+
 class API:
     def __init__(self, session, token=None):
         self.session, self.token = session, token
@@ -41,11 +45,16 @@ class API:
             except json.JSONDecodeError:
                 return text
 
-    async def ws(self, command, *, expect_error=None):
+    async def ws(self, command=None, *, expect_error=None):
         async with self.session.ws_connect(BASE + "/api/websocket") as websocket:
             check((await websocket.receive_json())["type"] == "auth_required", "WS authentication handshake")
             await websocket.send_json({"type": "auth", "access_token": self.token})
-            check((await websocket.receive_json())["type"] == "auth_ok", "WS authentication")
+            auth = await websocket.receive_json()
+            if auth.get("type") == "auth_invalid":
+                raise AuthenticationError("WS authentication rejected")
+            check(auth.get("type") == "auth_ok", "WS authentication")
+            if command is None:
+                return None
             await websocket.send_json({"id": 1, **command})
             result = await websocket.receive_json()
             check(result.get("id") == 1 and result.get("type") == "result", f"WS response: {result}")
@@ -74,11 +83,31 @@ async def wait_ready(api):
     raise AssertionError("Disposable Home Assistant did not become ready in 180 seconds")
 
 
+async def token_grant(api, grant):
+    return await api.request("POST", "/auth/token", {**grant, "client_id": CLIENT}, form=True)
+
+
 async def access_token(api, code):
-    result = await api.request("POST", "/auth/token", {
-        "grant_type": "authorization_code", "code": code, "client_id": CLIENT,
-    }, form=True)
+    result = await token_grant(api, {"grant_type": "authorization_code", "code": code})
     return result["access_token"]
+
+
+async def refresh_api(session, state):
+    anonymous = API(session)
+    await wait_ready(anonymous)
+    try:
+        await API(session, state["token"]).ws()
+    except AuthenticationError:
+        print("WARNING: Previous access token was rejected; validating the persisted refresh grant.", flush=True)
+    # This must use the saved grant: a fresh login could hide lost auth storage.
+    # HTTP errors (including invalid_grant) intentionally fail the test.
+    result = await token_grant(anonymous, {
+        "grant_type": "refresh_token", "refresh_token": state["refresh_token"],
+    })
+    api = API(session, result["access_token"])
+    await api.ws()
+    state["token"] = api.token
+    return api
 
 
 async def configure(api):
@@ -124,7 +153,8 @@ async def bootstrap(session):
         "client_id": CLIENT, "name": "Release Test Owner", "username": "release-test-owner",
         "password": password, "language": "en",
     })
-    token = await access_token(anonymous, onboard["auth_code"])
+    grant = await token_grant(anonymous, {"grant_type": "authorization_code", "code": onboard["auth_code"]})
+    token = grant["access_token"]
     api = API(session, token)
     await api.request("POST", "/api/onboarding/core_config", {})
     await api.request("POST", "/api/onboarding/analytics", {})
@@ -173,19 +203,23 @@ async def bootstrap(session):
         "revision": revision, "value": {"id": "fixture-device", "name": "Stale update"}}}, expect_error="invalid_request")
     expected = await api.action("export")
     await assert_snapshot(api, expected)
-    STATE.write_text(json.dumps({"token": token, "entry_id": entry_id, "expected": expected,
+    STATE.write_text(json.dumps({"token": token, "refresh_token": grant["refresh_token"],
+                                 "entry_id": entry_id, "expected": expected,
                                  "username": "release-test-owner", "password": password, "helper_entity": helper_entity}))
     print("PASS: fresh install, real config flow, singleton, admin boundary, atomic completion, persisted fixture", flush=True)
 
 
 async def lifecycle(session, phase):
     state = json.loads(STATE.read_text())
-    api = API(session, state["token"])
-    # Wait for auth and integration after a real process/container restart.
+    api = await refresh_api(session, state)
+    STATE.write_text(json.dumps(state))
+    # Wait for integration startup after validating the persisted auth grant.
     for attempt in range(120):
         try:
             await api.action("get", fields=["revision"])
             break
+        except AuthenticationError:
+            raise
         except Exception:
             await asyncio.sleep(1)
     await assert_snapshot(api, state["expected"])

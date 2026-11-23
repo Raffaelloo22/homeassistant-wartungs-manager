@@ -15,6 +15,7 @@ from homeassistant.components import frontend, panel_custom, persistent_notifica
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import callback
 from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
+from homeassistant.helpers import config_validation as cv
 from .onboarding import capture_preview, apply_capture
 from .materials import material_info, consume, return_event_stock
 from .battery_edit import edit_battery_type
@@ -27,7 +28,8 @@ from . import engine
 DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
-VERSION = '1.1.0'
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+VERSION = '1.1.1'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
