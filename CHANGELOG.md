@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## 1.2.14
+
+- Info-Symbol direkt neben der Fälligkeitsregel im Aufgabenformular ergänzt. Eine aufklappbare Hilfe erklärt alle sieben Regelarten mit Beispielen, ohne eingegebene Formulardaten zu verwerfen.
+- Unterschiede bei Einmalaufgaben, offenen Intervallen, Saison-Wochentagen, Messwertgrenzen und Geräteanzeigen erläutert.
+- Allgemeine Einstellungen in drei eigene Kacheln für Batteriewarnung, Home-Assistant-Meldung und Währung aufgeteilt.
+- Manuelle Gerätezuordnung benötigt wieder eine ausdrücklich gewählte Kategorie. Automatische Namens-/Hersteller-/Modellregeln und die Option «Automatisch zuordnen» entfernt; nicht zugeordnete Geräte erscheinen unter «Ohne Kategorie».
+
 ## 1.2.13
 
 - Gerätekacheln zeigen den Batteriestand ohne zusätzlichen Warnschwellentext.

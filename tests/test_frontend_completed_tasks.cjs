@@ -86,9 +86,9 @@ async function run(){
  {
   const {p}=completedFixture();let dialog;
   p.modal=(title,html)=>dialog={title,html};
-  await p.act('newrule','d');let kind=dialog.html.match(/<select name="kind">[\s\S]*?<\/select>/)[0];
+  await p.act('newrule','d');let kind=dialog.html.match(/<select\b[^>]*\bname="kind"[^>]*>[\s\S]*?<\/select>/)[0];
   assert(/<option value="date" selected>Termin<\/option>/.test(kind),'new tasks default to Termin');
-  await p.act('rule','recurring');kind=dialog.html.match(/<select name="kind">[\s\S]*?<\/select>/)[0];
+  await p.act('rule','recurring');kind=dialog.html.match(/<select\b[^>]*\bname="kind"[^>]*>[\s\S]*?<\/select>/)[0];
   assert(/<option value="interval" selected>/.test(kind),'editing an existing recurrence preserves its kind');
  }
  console.log('PASS: Erledigte Einmalaufgaben nur in Historie, offene Regeln unverändert, Replan/Undo/Archiv korrekt und Aufklappzustand erhalten.');

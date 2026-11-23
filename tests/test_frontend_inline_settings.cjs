@@ -32,12 +32,12 @@ function setup(){
 (async()=>{
  {
   const {p,writes}=setup(),before=plain(p.data),card=p.generalSettingsCard(p.data),all=p.settingsView(p.data);
-  assert(card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/data-settings-form=/g)||[]).length,3);
-  assert(card.indexOf('data-settings-form="currency"')<card.indexOf('<h3>Batteriewarnung</h3>'));
-  assert(card.indexOf('<h3>Batteriewarnung</h3>')<card.indexOf('name="battery_threshold_entity"'),'helper selection belongs under battery warning');
+  assert(card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/class="settings-card"/g)||[]).length,3,'general settings render as three separate cards');assert.equal((card.match(/data-settings-form=/g)||[]).length,3);
+  assert.deepEqual([...card.matchAll(/<section class="settings-card"><h2>([^<]+)<\/h2>/g)].map(match=>match[1]),['Batteriewarnung','Meldung innerhalb Home Assistant','Währung']);
+  assert(card.indexOf('name="battery_threshold_entity"')<card.indexOf('data-settings-form="schedule"'),'helper selection stays in the battery warning card');
   assert(!card.includes('type="submit"')&&!card.includes('>Speichern<'));
   assert(card.includes('type="reset" tabindex="-1"'),'discard remains clickable but cannot intercept the normal keyboard tab order');
-  assert(card.includes('<h3>Meldung innerhalb Home Assistant</h3>')&&!card.includes('Wochenmeldung'));
+  assert(card.includes('<h2>Meldung innerhalb Home Assistant</h2>')&&!card.includes('Wochenmeldung'));
   for(const text of ['Täglich','Wöchentlich','Monatlich','name="monthday"','min="1" max="31"','letzten Tag des Monats','Europe/Zurich','Testmeldung anzeigen'])assert(card.includes(text),text);
   assert(all.includes('id="battery-threshold-input"')&&!all.includes('data-action="preferences"')&&!all.includes('data-action="schedule"'));
   assert.equal(writes.length,0);assert.deepEqual(plain(p.data),before,'rendering defaults and binding controls is read-only');

@@ -13,6 +13,10 @@ function categoryFiltering(){
   p.filterChanged('query','zoe');assert(output.includes('Zoé Lampe'));assert.equal(clear.hidden,false);
   p.filterChanged('area','EG Küche');assert(output.includes('Keine Geräte.'));p.filterChanged('categoryFilter','');p.filterChanged('query','');assert(output.includes('Backofen'));assert(!output.includes('Zoé Lampe'));
   p.filterChanged('area','');assert(output.includes('Zoé Lampe')&&output.includes('Backofen'));assert.equal(clear.hidden,true);
+  assert.equal(p.category({name:'Mercedes',manufacturer:'Mercedes-Benz'}),'Ohne Kategorie','device names and manufacturers no longer infer categories');
+  assert.equal(p.category({name:'Lampe',category:'Buttons'}),'Licht','saved category aliases still normalize renamed categories');
+  p.deviceBatteryOptions=()=>[];p.batteryThreshold=()=>({value:20});p.archived=()=>false;p.haDeviceAssignmentFields=()=>'';p.relatedDeviceEditor=()=>'';
+  const form=p.deviceFields({name:'Lampe'});assert(!form.includes('Automatisch zuordnen'));assert(form.includes('<option value="Ohne Kategorie" selected>Ohne Kategorie</option>'));assert(form.includes('<option value="Licht"'), 'manual device forms still allow an explicit category');
 }
 
 function sortableFixture(type){

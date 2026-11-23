@@ -77,6 +77,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 ### Geräte und Home Assistant
 
 - Manuelle Geräteakten und direkt mit Home Assistant verknüpfte Geräte gemeinsam verwalten: Hersteller, Modell, Kaufdatum, Seriennummer, Batterieangaben und Notizen. Kosten lassen sich bei Historienereignissen erfassen.
+- Bei manuellen Geräteakten die Kategorie ausdrücklich auswählen. Es gibt keine Namens-, Hersteller- oder Modell-Regeln mehr; ohne Kategoriezuordnung erscheint das Gerät unter **Ohne Kategorie**. Bei der ausdrücklich gestarteten HA-Sammelerfassung wird die gewählte HA-Geräteart weiterhin einer Kategorie zugeordnet.
 - HA-Geräte gesammelt übernehmen: nach Gerätetyp und Text suchen, pro Typ bereits erfasste Geräte, neue Kandidaten und Konflikte sehen und die Auswahl vor der Übernahme prüfen. Die Sammelerfassung ist wiederholbar und berücksichtigt auch Lager, Archiv und Papierkorb beim Duplikatschutz.
 - Geräte miteinander verknüpfen und die Verknüpfung von beiden Seiten bearbeiten; Gerät und zugehörige Komponenten über anklickbare Tags öffnen.
 - Nach Kategorie, HA-Bereich und Text filtern. Die Suche findet Namen auch ohne Akzente oder Umlaute.
@@ -100,6 +101,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 - Aufgaben sind nach **Jetzt erledigen**, **Termin vereinbart**, **Bald fällig**, **Geplant**, **Nach Geräteanzeige** und **Nachkaufen** geordnet, soweit sie zur aktuellen Auswahl passen.
 - **Jetzt** ist die Standardauswahl. **Bald** umfasst morgen bis einschliesslich in 14 Tagen, **Alle** zeigt alle offenen Aufgaben. Die Suche berücksichtigt Gerät und Aufgabentext.
 - Ein gebuchter Ausführungstermin lässt sich zusätzlich zur eigentlichen Fälligkeit erfassen.
+- Das Info-Symbol neben **Fälligkeitsregel** öffnet Erklärungen und Beispiele zu allen sieben Regelarten direkt im Formular; die bisherigen Eingaben bleiben erhalten.
 - Sensor und Verbrauchsmaterial über Suchfelder auswählen; bei Rotationen kann jeder Arbeitsschritt ein anderes Material verwenden.
 - Wiederkehrende, aktuell erledigte Aufgaben bleiben in der Geräteakte mit ihrem nächsten Termin zugänglich.
 
