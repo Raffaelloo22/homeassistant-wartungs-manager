@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 1.2.10
+
+- Gerätefilter «Änderungen» berücksichtigt Erfassungsdatum und letzten Änderungszeitpunkt unabhängig voneinander: gestern erfasst und heute bearbeitet erscheint in beiden Tagesfiltern. Aufgaben und Historie bleiben ausgenommen.
+- Neu erfasste Importgeräte ohne Erfassungsdatum erhalten einen Zeitstempel. Mitgelieferte Datierungen und bestehende Geräte bleiben unverändert; eine Datenwiederherstellung wird nicht als neue Erfassung datiert.
+
 ## 1.2.9
 
 - Geräte nach Änderungen filtern: heute, gestern, vergangene 7 oder 30 Tage. Aufgaben, Historie und laufende Home-Assistant-Messwerte ändern den Gerätezeitstempel nicht. Ältere Geräte ohne verlässlichen Zeitstempel bleiben unter „Alle“ sichtbar.

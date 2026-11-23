@@ -15,6 +15,13 @@ function setup(){const f=fixture();Object.assign(f.p,{deviceChangePeriod:'all',d
   p.deviceChangePeriod='week';assert(p.deviceChangeMatches(stamp('2026-11-17T10:00:00Z')));assert(!p.deviceChangeMatches(stamp('2026-11-16T10:00:00Z')));assert(p.deviceChangeMatches(stamp('2026-11-23T10:00:00Z')));
   p.deviceChangePeriod='month';assert(p.deviceChangeMatches(stamp('2026-10-25T10:00:00Z')));assert(!p.deviceChangeMatches(stamp('2026-10-24T10:00:00Z')));
   p.data.today='2026-03-29';p.deviceChangePeriod='today';assert(p.deviceChangeMatches(stamp('2026-03-28T23:30:00Z')));assert(p.deviceChangeMatches(stamp('2026-03-29T21:59:59Z')));assert(!p.deviceChangeMatches(stamp('2026-03-29T22:00:00Z')),'summer-time boundary follows HA timezone');
+  p.data.today='2026-11-23';
+  const createdYesterdayEditedToday={created_at:'2026-11-22T10:00:00+01:00',device_updated_at:'2026-11-23T10:00:00+01:00'};
+  for(const period of ['today','yesterday','week','month']){p.deviceChangePeriod=period;assert(p.deviceChangeMatches(createdYesterdayEditedToday),'creation and latest edit independently match '+period);}
+  p.deviceChangePeriod='yesterday';assert(p.deviceChangeMatches({...createdYesterdayEditedToday,device_updated_at:'ungültig'}),'invalid edit timestamp must not hide a valid creation');
+  p.deviceChangePeriod='today';assert(p.deviceChangeMatches({...createdYesterdayEditedToday,created_at:'ungültig'}),'invalid creation timestamp must not hide a valid edit');
+  p.deviceChangePeriod='week';assert(!p.deviceChangeMatches({created_at:'2026-10-01T12:00:00Z',device_updated_at:'2026-11-16T12:00:00Z'}),'both dates outside the period remain excluded');
+  assert(p.deviceChangeMatches({created_at:'2026-11-17T12:00:00Z',device_updated_at:'2026-11-24T12:00:00Z'}),'a future edit cannot mask a creation inside the selected period');
   p.deviceChangePeriod='all';assert(p.deviceChangeMatches({}),'all preserves old devices with no historical timestamp');
  }
  {

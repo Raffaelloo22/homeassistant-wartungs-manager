@@ -129,14 +129,19 @@ def _device_master_signature(device, neighbors):
 
 
 def stamp_device_changes(previous, current, now, action):
-    """Record actual master-data edits, excluding task/log writes and historical imports."""
-    if action not in DEVICE_CHANGE_ACTIONS:
+    """Record device edits and new imports without rewriting historical timestamps."""
+    if action not in DEVICE_CHANGE_ACTIONS and action != 'import':
         return
     if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
         raise ValueError('Geräteänderungszeitpunkt benötigt eine Zeitzone.')
     old_devices, devices = previous.get('devices', {}), current.get('devices', {})
-    old_neighbors, neighbors = _device_neighbors(previous), _device_neighbors(current)
     timestamp = now.isoformat()
+    if action == 'import':
+        for identity, device in devices.items():
+            if identity not in old_devices:
+                device.setdefault('created_at', timestamp)
+        return
+    old_neighbors, neighbors = _device_neighbors(previous), _device_neighbors(current)
     for identity, device in devices.items():
         if identity not in old_devices:
             device['created_at'] = timestamp

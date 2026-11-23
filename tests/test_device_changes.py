@@ -164,6 +164,65 @@ class DeviceChanges(DeviceChangeFixture, TaskMaterialFixture, DirectoryTestCase)
         self.assertEqual(set(result['devices']), {'d'})
         self.assertEqual(obj.data, before, 'Reading a snapshot never backfills or mutates timestamps')
 
+    async def test_import_stamps_only_new_devices_missing_their_creation_timestamp(self):
+        obj = self.tracked()
+        records = [
+            {'collection': 'devices', 'source_key': 'new-device', 'value': {'id': 'new', 'name': 'Neu importiert'}},
+            {'collection': 'devices', 'source_key': 'historical-device', 'value': {
+                'id': 'historical', 'name': 'Historische Metadaten', 'created_at': CREATED, 'device_updated_at': OLD}},
+            {'collection': 'devices', 'source_key': 'known-update', 'value': {
+                'id': 'updated', 'name': 'Nur Änderung bekannt', 'device_updated_at': OLD}},
+        ]
+        incoming = deepcopy(records)
+        await self.call(obj, 'import', records=records)
+        self.assertEqual(obj.data['devices']['new']['created_at'], NOW.isoformat())
+        self.assertNotIn('device_updated_at', obj.data['devices']['new'])
+        self.assertEqual(obj.data['devices']['historical']['created_at'], CREATED)
+        self.assertEqual(obj.data['devices']['historical']['device_updated_at'], OLD)
+        self.assertEqual(obj.data['devices']['updated']['created_at'], NOW.isoformat())
+        self.assertEqual(obj.data['devices']['updated']['device_updated_at'], OLD)
+        self.assertEqual(records, incoming, 'Imported source records remain unchanged')
+        self.assertEqual(obj.data['devices']['d']['created_at'], CREATED)
+        self.assertEqual(obj.data['devices']['d']['device_updated_at'], OLD)
+        before = deepcopy(obj.data['devices'])
+        result = await self.call(obj, 'import', when=LATER, records=records)
+        self.assertEqual(result['counts']['new'], 0)
+        self.assertEqual(result['counts']['existing'], 3)
+        self.assertEqual(obj.data['devices'], before)
+
+    async def test_imported_purchase_log_does_not_stamp_existing_devices_or_backfill_unknown_dates(self):
+        for tracked in (False, True):
+            with self.subTest(tracked=tracked):
+                obj = self.tracked() if tracked else self.obj()
+                before = deepcopy(obj.data['devices']['d'])
+                await self.call(obj, 'import', records=[{
+                    'collection': 'logs', 'source_key': 'purchase-entry', 'value': {
+                        'id': 'purchase', 'device_id': 'd', 'kind': 'purchase', 'event_date': '2026-11-01'}}])
+                self.assertEqual(obj.data['devices']['d']['purchase_date'], '2026-11-01')
+                for field in ('created_at', 'device_updated_at'):
+                    self.assertEqual(obj.data['devices']['d'].get(field), before.get(field))
+                    self.assertEqual(field in obj.data['devices']['d'], field in before)
+
+    async def test_restore_does_not_assign_capture_dates_to_legacy_devices(self):
+        obj = self.tracked()
+        incoming = engine.blank()
+        incoming['devices']['restored'] = {'id': 'restored', 'name': 'Historisch ohne Zeitstempel'}
+        await self.call(obj, 'restore', value=incoming)
+        self.assertNotIn('created_at', obj.data['devices']['restored'])
+        self.assertNotIn('device_updated_at', obj.data['devices']['restored'])
+
+    async def test_import_requires_an_aware_clock_and_rejects_invalid_supplied_dates_atomically(self):
+        obj = self.obj()
+        records = [{'collection': 'devices', 'source_key': 'new-device', 'value': {'id': 'new', 'name': 'Neu'}}]
+        before = deepcopy(obj.data)
+        with self.assertRaisesRegex(ValueError, 'Zeitzone'):
+            await self.call(obj, 'import', when=datetime(2026, 11, 23, 12, 0), records=records)
+        self.assertEqual(obj.data, before)
+        records[0]['value']['created_at'] = '2026-11-23T12:00:00'
+        with self.assertRaisesRegex(ValueError, 'Zeitzone'):
+            await self.call(obj, 'import', records=records)
+        self.assertEqual(obj.data, before)
+
     async def test_failed_save_does_not_publish_timestamp_or_content(self):
         obj = self.tracked()
         before = deepcopy(obj.data)

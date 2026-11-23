@@ -31,7 +31,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.9'
+VERSION = '1.2.10'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
