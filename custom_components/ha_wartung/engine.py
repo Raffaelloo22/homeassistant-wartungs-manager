@@ -89,6 +89,62 @@ def sanitize_directory(data):
     return remove_evernote_sources(remove_device_images(remove_log_sources(data)))
 
 
+DEVICE_CHANGE_ACTIONS = frozenset({
+    'save_device', 'duplicate_device', 'archive_device', 'delete_device', 'restore_device',
+    'replace_device', 'initial_capture_commit', 'bulk', 'save_categories', 'delete_category',
+    'edit_battery_type', 'normalize_battery_devices', 'purge_trash', 'purge_trash_device',
+})
+DEVICE_MASTER_FIELDS = (
+    'name', 'manufacturer', 'model', 'category', 'serial', 'purchase_date', 'purchase_period',
+    'notes', 'ha_device_id', 'battery_entity_id', 'predecessor_id', 'successor_id', 'controller_device_id',
+)
+
+
+def _device_neighbors(data):
+    devices = data.get('devices', {})
+    neighbors = {identity: set() for identity in devices}
+    for identity, device in devices.items():
+        for link in device.get('related_devices', []):
+            target = link.get('id')
+            if target in neighbors and target != identity:
+                neighbors[identity].add(target)
+                neighbors[target].add(identity)
+    return neighbors
+
+
+def _device_master_signature(device, neighbors):
+    battery = normalize_battery_type(device.get('battery_type'))
+    quantity = device.get('battery_quantity')
+    if battery and quantity is None:
+        match = re.match(r'^(\d+)\s*[×x]\s*', str(device.get('battery_type') or '').strip())
+        quantity = int(match.group(1)) if match else 1
+    if isinstance(quantity, str) and quantity.isdigit():
+        quantity = int(quantity)
+    status = ('trash' if device.get('deleted_at') else 'archive' if device.get('archived') or device.get('archived_at')
+              else 'storage' if device.get('in_storage') else 'active')
+    return (tuple(device.get(field) or None for field in DEVICE_MASTER_FIELDS), status,
+            battery or None, quantity if battery else None,
+            device.get('battery_alert_enabled') is not False if battery else None,
+            frozenset(neighbors), frozenset(device.get('controlled_device_ids') or []))
+
+
+def stamp_device_changes(previous, current, now, action):
+    """Record actual master-data edits, excluding task/log writes and historical imports."""
+    if action not in DEVICE_CHANGE_ACTIONS:
+        return
+    if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError('Geräteänderungszeitpunkt benötigt eine Zeitzone.')
+    old_devices, devices = previous.get('devices', {}), current.get('devices', {})
+    old_neighbors, neighbors = _device_neighbors(previous), _device_neighbors(current)
+    timestamp = now.isoformat()
+    for identity, device in devices.items():
+        if identity not in old_devices:
+            device['created_at'] = timestamp
+            device['device_updated_at'] = timestamp
+        elif _device_master_signature(old_devices[identity], old_neighbors[identity]) != _device_master_signature(device, neighbors[identity]):
+            device['device_updated_at'] = timestamp
+
+
 def event_types(data):
     return dict(DEFAULT_EVENT_TYPES, **data.get('settings', {}).get('event_types', {}))
 
@@ -604,6 +660,15 @@ def validate_data(data):
             raise ValueError('Gerätename und ID sind erforderlich.')
         for field in ('purchase_date', 'archived_at'):
             parse_date(device.get(field))
+        for field in ('created_at', 'device_updated_at'):
+            if field in device:
+                value = device[field]
+                try:
+                    timestamp = datetime.fromisoformat(value) if isinstance(value, str) and len(value) <= 128 else None
+                except ValueError as exc:
+                    raise ValueError('Ungültiger Gerätezeitstempel: ' + field) from exc
+                if timestamp is None or timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise ValueError('Gerätezeitstempel benötigt eine Zeitzone: ' + field)
     for identity, rule in data['rules'].items():
         if not isinstance(rule, dict) or rule.get('id') != identity or rule.get('device_id') not in data['devices']:
             raise ValueError('Ungültige Aufgabenverknüpfung.')

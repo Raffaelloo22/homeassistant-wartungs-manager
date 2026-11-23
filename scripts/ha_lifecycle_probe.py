@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from base64 import b64decode
+from datetime import datetime
 import json
 from pathlib import Path
 import secrets
@@ -20,6 +21,7 @@ STATE = Path("/config/release-test-state.json")
 DOMAIN = "ha_wartung"
 BATTERY_SHOP_URL = "https://example.com/shop/aa"
 MATERIAL_SHOP_URL = "https://example.com/shop/filter"
+DEVICE_COPY_OPERATION = "fixture-device-copy"
 
 
 def check(value, message):
@@ -107,6 +109,17 @@ async def access_token(api, code):
     return result["access_token"]
 
 
+async def login_api(session, username, password):
+    anonymous = API(session)
+    login = await anonymous.request("POST", "/auth/login_flow", {
+        "client_id": CLIENT, "handler": ["homeassistant", None], "redirect_uri": CLIENT,
+    })
+    login = await anonymous.request("POST", "/auth/login_flow/" + login["flow_id"], {
+        "client_id": CLIENT, "username": username, "password": password,
+    })
+    return API(session, await access_token(anonymous, login["result"]))
+
+
 async def refresh_api(session, state):
     anonymous = API(session)
     # The onboarding route disappears once setup is complete.
@@ -147,6 +160,49 @@ def supports_shop_urls(version):
     return tuple(map(int, parts)) >= (1, 2, 0)
 
 
+def supports_device_copy(version):
+    return tuple(map(int, version.split('.'))) >= (1, 2, 9)
+
+
+async def exercise_device_copy(api, viewer):
+    """Exercise the actual admin-only, retry-safe WS mutation on synthetic data."""
+    before = await api.action("export")
+    revision = before["revision"]
+    result = await api.action("duplicate_device", id="fixture-device", revision=revision,
+                              operation_id=DEVICE_COPY_OPERATION)
+    identity = result["id"]
+    after = await api.action("export")
+    check(identity not in before["devices"] and identity in after["devices"], "Copy has an independent device ID")
+    check(len(after["devices"]) == len(before["devices"]) + 1, "Exactly one device was copied")
+    check({key: value for key, value in after["devices"].items() if key != identity} == before["devices"],
+          "Device duplication leaves the original and every other device unchanged")
+    copied, source = after["devices"][identity], before["devices"]["fixture-device"]
+    check(copied["name"] == result["name"] == source["name"] + " (Kopie)", "Copy result names the new device")
+    for field in ("category", "notes", "battery_type", "battery_quantity"):
+        check(copied[field] == source[field], "Copied metadata: " + field)
+    check(not copied.get("in_storage") and not copied.get("archived") and not copied.get("archived_at")
+          and not copied.get("deleted_at"), "New device copy is active")
+    for field in ("ha_device_id", "serial", "battery_entity_id", "sensor_registry_id", "related_devices",
+                  "predecessor_id", "successor_id", "controller_device_id", "incoming_devices"):
+        check(not copied.get(field), "Physical identity or relationships were not inherited: " + field)
+    check(copied["created_at"] == copied["device_updated_at"]
+          and datetime.fromisoformat(copied["created_at"]).tzinfo is not None, "The real API stamps the new device")
+    for collection in ("rules", "logs", "shopping", "imports", "settings"):
+        check(after[collection] == before[collection], "Device duplication does not change " + collection)
+    check(after.get("samples") == before.get("samples"), "Device duplication does not copy sensor samples")
+    check(after["operations"] == {**before["operations"], DEVICE_COPY_OPERATION: identity},
+          "Only the device-copy operation was booked")
+    check(after["revision"] == revision + 1, "One device copy increments the data revision once")
+    retry = await api.action("duplicate_device", id="fixture-device", revision=revision,
+                             operation_id=DEVICE_COPY_OPERATION, value={"name": "Must not replace the saved copy"})
+    check(retry["id"] == identity and retry.get("already_saved"), "Stale-revision retry returns the same copy")
+    check(await api.action("export") == after, "Retry creates no second copy and makes no further writes")
+    await viewer.ws({"type": DOMAIN + "/request", "action": "duplicate_device", "payload": {
+        "id": "fixture-device", "revision": revision, "operation_id": DEVICE_COPY_OPERATION,
+    }}, expect_error="unauthorized")
+    check(await api.action("export") == after, "A viewer cannot execute or replay device duplication")
+
+
 async def set_shop_urls(api):
     """Exercise both new write APIs after preserving an old package's export."""
     await api.mutate("battery_inventory", shop_urls={"AA": BATTERY_SHOP_URL})
@@ -169,6 +225,9 @@ async def assert_snapshot(api, expected, *, shop_urls):
     check(snapshot["logs"], "Completion history persisted")
     check(snapshot["settings"]["battery_inventory"]["AA"] == 3, "Battery stock persisted")
     check(snapshot["settings"]["consumables"]["fixture-filter"]["quantity"] == 1.5, "Material stock persisted")
+    copy_id = expected.get("operations", {}).get(DEVICE_COPY_OPERATION)
+    if copy_id:
+        check(snapshot["devices"][copy_id] == expected["devices"][copy_id], "The independent device copy persisted")
     if shop_urls:
         check(snapshot["settings"]["battery_shop_urls"]["AA"] == BATTERY_SHOP_URL, "Battery shop link persisted")
         check(snapshot["settings"]["consumables"]["fixture-filter"]["shop_url"] == MATERIAL_SHOP_URL, "Material shop link persisted")
@@ -218,13 +277,7 @@ async def bootstrap(session):
     user = await api.ws({"type": "config/auth/create", "name": "Release Test Viewer", "group_ids": ["system-users"]})
     await api.ws({"type": "config/auth_provider/homeassistant/create", "user_id": user["user"]["id"],
                   "username": "release-test-viewer", "password": password})
-    login = await anonymous.request("POST", "/auth/login_flow", {
-        "client_id": CLIENT, "handler": ["homeassistant", None], "redirect_uri": CLIENT,
-    })
-    login = await anonymous.request("POST", "/auth/login_flow/" + login["flow_id"], {
-        "client_id": CLIENT, "username": "release-test-viewer", "password": password,
-    })
-    viewer = API(session, await access_token(anonymous, login["result"]))
+    viewer = await login_api(session, "release-test-viewer", password)
     await viewer.ws({"type": DOMAIN + "/request", "action": "get", "payload": {}}, expect_error="unauthorized")
     await viewer.ws({"type": DOMAIN + "/request", "action": "save_device", "payload": {"value": {"name": "Must not be saved"}}}, expect_error="unauthorized")
     if tuple(map(int, version.split('.'))) >= (1, 2, 5):
@@ -255,6 +308,8 @@ async def bootstrap(session):
     check(done["id"] == retry["id"] and retry["already_saved"], "Idempotent completion retry")
     await api.ws({"type": DOMAIN + "/request", "action": "save_device", "payload": {
         "revision": revision, "value": {"id": "fixture-device", "name": "Stale update"}}}, expect_error="invalid_request")
+    if supports_device_copy(version):
+        await exercise_device_copy(api, viewer)
     expected = await api.action("export")
     await assert_snapshot(api, expected, shop_urls=shop_urls)
     STATE.write_text(json.dumps({"token": token, "refresh_token": grant["refresh_token"],
@@ -281,6 +336,9 @@ async def lifecycle(session, phase):
     if phase == "preferences":
         version = (await api.action("get", fields=["version"]))["version"]
         check(supports_shop_urls(version), "Updated package must support shop links")
+        if supports_device_copy(version) and DEVICE_COPY_OPERATION not in state["expected"].get("operations", {}):
+            viewer = await login_api(session, "release-test-viewer", state["password"])
+            await exercise_device_copy(api, viewer)
         await api.mutate("preferences", value={"currency": "EUR", "battery_threshold_entity": state["helper_entity"]})
         await set_shop_urls(api)
         state["shop_urls"] = True

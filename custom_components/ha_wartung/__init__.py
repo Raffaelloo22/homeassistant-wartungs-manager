@@ -19,6 +19,7 @@ from homeassistant.helpers import config_validation as cv
 from .onboarding import capture_preview, apply_capture
 from .materials import material_info, consume, return_event_stock
 from .battery_edit import edit_battery_type
+from .device_copy import build_device_copy
 from .inventory_pdf import build_inventory_pdf
 from .diagnostics import inspect_directory
 from homeassistant.helpers.event import async_track_time_interval
@@ -30,7 +31,7 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.8'
+VERSION = '1.2.9'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -199,7 +200,8 @@ class Directory:
     def snapshot(self):
         now = dt_util.now()
         result = apply_ha_device_areas(deepcopy(self.data), self.registry(areas_only=True))
-        result['trash'] = [{'id':d['id'],'name':d['name'],'deleted_at':d['deleted_at']}
+        result['trash'] = [{'id':d['id'],'name':d['name'],'deleted_at':d['deleted_at'],
+                            **{field:d[field] for field in ('created_at', 'device_updated_at') if field in d}}
                            for d in result['devices'].values() if d.get('deleted_at')]
         result['devices'] = {k:d for k,d in result['devices'].items() if not d.get('deleted_at')}
         for collection in ('rules','logs'):
@@ -344,6 +346,15 @@ class Directory:
             p = dict(p, records=seed['records'], questions=seed.get('review',[]))
             action = 'import'
         async with self.lock:
+            if action == 'duplicate_device':
+                operation = p.get('operation_id')
+                if not isinstance(operation, str) or not operation.strip() or len(operation) > 128:
+                    raise ValueError('Buchungskennung fehlt.')
+                if operation in self.data['operations']:
+                    identity = self.data['operations'][operation]
+                    if not isinstance(identity, str) or identity not in self.data['devices']:
+                        raise ValueError('Diese Buchungskennung wurde bereits verwendet oder die Kopie endgültig entfernt.')
+                    return {'id':identity, 'name':self.data['devices'][identity]['name'], 'already_saved':True, 'revision':self.data['revision']}
             if action in ('complete', 'battery_replacement', 'battery_purchase', 'consumable_purchase') and p.get('operation_id') in self.data['operations']:
                 return {'id':self.data['operations'][p['operation_id']], 'already_saved':True}
             if action == 'undo_completion' and self.data['logs'].get(p.get('id'), {}).get('undone_at'):
@@ -522,9 +533,17 @@ class Directory:
                 result['id'] = p['id']
             elif action == 'restore_device':
                 new = engine.restore_device(new,p['id'])
+            elif action == 'duplicate_device':
+                value = build_device_copy(new, p.get('id'), p.get('value'))
+                new['devices'][value['id']] = value
+                new['operations'][p['operation_id']] = value['id']
+                result.update(id=value['id'], name=value['name'])
             elif action in ('save_device','save_rule','add_log','save_shopping'):
                 collection = {'save_device':'devices','save_rule':'rules','add_log':'logs','save_shopping':'shopping'}[action]
                 value = dict(p['value'])
+                if collection == 'devices':
+                    for field in ('created_at', 'device_updated_at'):
+                        value.pop(field, None)
                 identity = value.get('id') or str(uuid4())
                 existing = new[collection].get(identity,{})
                 value = {**existing, **value, 'id':identity}
@@ -922,6 +941,7 @@ class Directory:
                     elif identity in new['shopping']:
                         new['shopping'][identity]['done'] = True
             self.validate_registry_links(new)
+            engine.stamp_device_changes(self.data, new, now, action)
             new['revision'] = max(new['revision'],self.data['revision'] + 1)
             await self.commit(new)
             if action == 'reset_all_data':

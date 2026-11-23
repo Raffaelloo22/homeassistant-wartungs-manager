@@ -17,9 +17,10 @@ class DirectoryTestCase(unittest.IsolatedAsyncioTestCase):
 
 # Register all execution dependencies here; test discovery order must not matter.
 from battery_edit import edit_battery_type
+from device_copy import build_device_copy
 from materials import material_info, consume, undo_consumption, return_event_stock
 from onboarding import capture_preview, apply_capture, device_type
-ns.update(Path=Path, edit_battery_type=edit_battery_type, material_info=material_info, consume=consume, undo_consumption=undo_consumption, return_event_stock=return_event_stock, capture_preview=capture_preview, apply_capture=apply_capture)
+ns.update(Path=Path, edit_battery_type=edit_battery_type, build_device_copy=build_device_copy, material_info=material_info, consume=consume, undo_consumption=undo_consumption, return_event_stock=return_event_stock, capture_preview=capture_preview, apply_capture=apply_capture)
 
 class TaskMaterialFixture:
  def linked(self,kind='battery',quantity=2,stock=5):

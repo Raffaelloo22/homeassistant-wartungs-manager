@@ -82,6 +82,8 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 - Nach Kategorie, HA-Bereich und Text filtern. Die Suche findet Namen auch ohne Akzente oder Umlaute.
 - Zwischen **Aktiv**, **Lager**, **Archiv** und **Papierkorb** wechseln. Lager und Archiv behalten ihre Akten und Historie, ohne Aufgaben in der aktiven Liste anzuzeigen. Geräte aus dem Papierkorb lassen sich wiederherstellen oder endgültig entfernen.
 - Auf Gerätekacheln Aufgabenanzahl, zugehöriges Verbrauchsmaterial sowie Batteriestand und Warnschwelle sehen.
+- Mit **Änderungen: Alle | Heute | Gestern | letzte Woche | letzten Monat** nach geänderten Gerätedaten filtern, gemeinsam mit Suche, Kategorie und Bereich. Woche und Monat umfassen die vergangenen 7 bzw. 30 Tage einschliesslich heute; Tagesgrenzen folgen der Home-Assistant-Zeitzone. Aufgaben, Historie und Live-Messwerte zählen nicht als Geräteänderung. Für ältere Geräte wird kein Änderungsdatum erfunden: Sie bleiben unter **Alle** sichtbar und erhalten beim nächsten tatsächlichen Bearbeiten einen Zeitstempel.
+- **Duplizieren** vor **Entfernen** in der Geräteakte öffnet einen bearbeitbaren Entwurf mit den Stammdaten. Die aktive Kopie erhält einen eindeutigen Namen und eine neue ID, ohne Seriennummer, HA-/Sensorzuordnung, Geräteverknüpfungen, Aufgaben oder Historie des Originals. Verbrauchsmaterialbestände werden dabei nicht verändert.
 
 ### Wartung nach Datum, Zyklus oder Sensor
 

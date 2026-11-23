@@ -8,9 +8,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 source = ast.parse((ROOT / 'scripts/ha_lifecycle_probe.py').read_text())
-names = {'check', 'supports_shop_urls', 'set_shop_urls', 'assert_snapshot', 'wait_running'}
+names = {'check', 'supports_shop_urls', 'supports_device_copy', 'set_shop_urls', 'assert_snapshot', 'wait_running'}
 module = ast.fix_missing_locations(ast.Module(
-    body=[node for node in source.body if getattr(node, 'name', None) in names], type_ignores=[]))
+    body=[node for node in source.body if getattr(node, 'name', None) in names
+          or isinstance(node, ast.Assign) and any(getattr(target, 'id', None) == 'DEVICE_COPY_OPERATION'
+                                                 for target in node.targets)], type_ignores=[]))
 BATTERY_URL = 'https://example.com/shop/aa'
 MATERIAL_URL = 'https://example.com/shop/filter'
 namespace = {'BATTERY_SHOP_URL': BATTERY_URL, 'MATERIAL_SHOP_URL': MATERIAL_URL}
@@ -56,6 +58,12 @@ class LifecycleFeatureContract(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(AssertionError):
                 namespace['supports_shop_urls'](version)
 
+    def test_device_copy_probe_runs_only_on_packages_supporting_the_new_api(self):
+        for version, expected in [('1.0.50', False), ('1.2.0', False), ('1.2.8', False),
+                                  ('1.2.9', True), ('1.2.10', True), ('2.0.0', True)]:
+            with self.subTest(version=version):
+                self.assertIs(namespace['supports_device_copy'](version), expected)
+
     async def test_legacy_baseline_keeps_full_export_checks_without_new_fields(self):
         original = fixture(False)
         await namespace['assert_snapshot'](API(original), original, shop_urls=False)
@@ -81,6 +89,23 @@ class LifecycleFeatureContract(unittest.IsolatedAsyncioTestCase):
         original = fixture(True)
         api = API(original)
         del api.data['settings']['battery_shop_urls']
+        with self.assertRaises(KeyError):
+            await namespace['assert_snapshot'](api, original, shop_urls=True)
+
+    async def test_a_saved_device_copy_must_persist_in_the_runtime_snapshot_too(self):
+        original = fixture(True)
+        original['operations'] = {namespace['DEVICE_COPY_OPERATION']: 'fixture-copy'}
+        original['devices']['fixture-copy'] = {
+            'id': 'fixture-copy', 'name': 'Example appliance (Kopie)', 'notes': 'Synthetic device note',
+            'created_at': '2026-11-23T14:20:00+01:00', 'device_updated_at': '2026-11-23T14:20:00+01:00',
+        }
+        await namespace['assert_snapshot'](API(original), original, shop_urls=True)
+        api = API(original)
+        api.data['devices']['fixture-copy']['notes'] = 'Unexpected runtime change'
+        with self.assertRaisesRegex(AssertionError, 'independent device copy persisted'):
+            await namespace['assert_snapshot'](api, original, shop_urls=True)
+        api = API(original)
+        del api.data['devices']['fixture-copy']
         with self.assertRaises(KeyError):
             await namespace['assert_snapshot'](api, original, shop_urls=True)
 

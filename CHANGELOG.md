@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## 1.2.9
+
+- Geräte nach Änderungen filtern: heute, gestern, vergangene 7 oder 30 Tage. Aufgaben, Historie und laufende Home-Assistant-Messwerte ändern den Gerätezeitstempel nicht. Ältere Geräte ohne verlässlichen Zeitstempel bleiben unter „Alle“ sichtbar.
+- „Duplizieren“ in der Geräteakte: Stammdaten vor dem Anlegen prüfen, eindeutigen Namen erhalten und die Kopie als aktives Gerät speichern. Seriennummer, HA-/Sensorzuordnungen, Geräteverknüpfungen, Aufgaben und Historie werden nicht übernommen; Bestände bleiben unverändert. Wiederholte Speicherversuche erzeugen keine zusätzliche Kopie.
+
 ## 1.2.8
 
 - Hinweistext im Verbrauchsmaterial entfernt.
