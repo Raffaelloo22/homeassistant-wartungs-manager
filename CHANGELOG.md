@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.19
+
+- Schaltfläche «Batterie ersetzen» im Formular für Wartungsaufgaben ergänzt, wenn beim zugehörigen Gerät ein Batterietyp erfasst ist. Die Schaltfläche wählt diesen Batterietyp als Verbrauchsmaterial aus.
+
 ## 1.2.16
 
 - Versionsdatum direkt hinter der Versionsnummer in den Einstellungen ergänzt. Die interne Datenrevision wird dort nicht mehr angezeigt.
