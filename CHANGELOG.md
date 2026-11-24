@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.20
+
+- «Batterie ersetzen» füllt einen noch leeren Aufgabennamen mit «Batterie ersetzen» und setzt den Batterietyp des Geräts nur dann als Verbrauchsmaterial ein, wenn das Feld noch leer ist. Vorhandene Aufgaben- und Materialangaben bleiben unverändert.
+
 ## 1.2.19
 
 - Schaltfläche «Batterie ersetzen» im Formular für Wartungsaufgaben ergänzt, wenn beim zugehörigen Gerät ein Batterietyp erfasst ist. Die Schaltfläche wählt diesen Batterietyp als Verbrauchsmaterial aus.
