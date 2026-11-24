@@ -403,9 +403,11 @@ class Directory:
                 if not isinstance(value, dict):
                     raise ValueError('Ungültige allgemeine Einstellungen.')
                 settings = new.setdefault('settings', {})
-                for key in ('currency', 'battery_threshold_entity'):
+                for key in ('currency', 'battery_threshold_entity', 'language'):
                     if key in value:
                         settings[key] = value[key]
+                if 'language' in value and value['language'] not in ('de', 'en', 'fr'):
+                    raise ValueError('Bitte Deutsch, Englisch oder Französisch auswählen.')
                 engine.validate_data(new)
             elif action == 'save_event_type':
                 result['id'] = engine.save_event_type(new, p.get('id'), p.get('name'))
