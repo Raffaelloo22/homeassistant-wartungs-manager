@@ -590,6 +590,8 @@ class Directory:
                         material['notes'] = notes
                         value.pop('notes', None)
                 if collection == 'devices':
+                    if 'info_url' in value:
+                        value['info_url'] = engine.normalize_shop_url(value['info_url'])
                     status = value.pop('device_status', None)
                     if status is not None:
                         if status not in ('active', 'storage', 'archive', 'trash'):
@@ -827,7 +829,7 @@ class Directory:
                 new['operations'][identity] = item['id']
                 result['id'] = item['id']
             elif action == 'edit_battery_type':
-                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'), **({'shop_url':p['shop_url']} if 'shop_url' in p else {}), **({'no_restock':p['no_restock']} if 'no_restock' in p else {}))
+                result = edit_battery_type(new, p.get('type'), p.get('new_type'), p.get('quantity'), p.get('device_ids', []), battery_type, validate_material_device_ids, p.get('threshold'), p.get('notes'), **({'shop_url':p['shop_url']} if 'shop_url' in p else {}), **({'no_restock':p['no_restock']} if 'no_restock' in p else {}), **({'rechargeable':p['rechargeable']} if 'rechargeable' in p else {}))
             elif action == 'battery_inventory':
                 stocks = p.get('stocks', {})
                 removed = p.get('remove_types', [])
@@ -842,9 +844,12 @@ class Directory:
                     raise ValueError('Ungültige Batterie-Shop-Links.')
                 if not isinstance(notes, dict) or len(notes) > 100 or any(not isinstance(text, str) or len(text) > 20000 for text in notes.values()):
                     raise ValueError('Ungültige Batterie-Notizen.')
-                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes or shop_urls or no_restock):
+                rechargeable = p.get('rechargeable', {})
+                if not isinstance(rechargeable, dict) or len(rechargeable) > 100 or any(type(value) is not bool for value in rechargeable.values()):
+                    raise ValueError('Ungültige Akku-Einstellungen für Batterien.')
+                if not isinstance(stocks, dict) or len(stocks) > 100 or not isinstance(removed, list) or len(removed) > 100 or not isinstance(device_links, dict) or len(device_links) > 100 or not isinstance(thresholds, dict) or len(thresholds) > 100 or not (stocks or removed or device_links or thresholds or notes or shop_urls or no_restock or rechargeable):
                     raise ValueError('Batterietypen und Bestände fehlen.')
-                for kind in [*stocks, *removed, *device_links, *thresholds, *notes, *shop_urls, *no_restock]:
+                for kind in [*stocks, *removed, *device_links, *thresholds, *notes, *shop_urls, *no_restock, *rechargeable]:
                     if not isinstance(kind, str) or not kind.strip() or len(kind) > 160:
                         raise ValueError('Ungültiger Batterietyp.')
                 for quantity in stocks.values():
@@ -869,6 +874,16 @@ class Directory:
                         else:
                             disabled.discard(kind)
                     settings['battery_no_restock'] = sorted(disabled)
+                rechargeable_types=set(settings.get('battery_rechargeable_types', [])) - set(removed)
+                for kind, is_rechargeable in rechargeable.items():
+                    if kind not in updated:
+                        raise ValueError('Batterietyp für die Akku-Einstellung wurde nicht gefunden.')
+                    if is_rechargeable:
+                        rechargeable_types.add(kind)
+                    else:
+                        rechargeable_types.discard(kind)
+                if 'rechargeable' in p or 'battery_rechargeable_types' in settings:
+                    settings['battery_rechargeable_types'] = sorted(rechargeable_types)
                 if any(kind not in updated for kind in notes):
                     raise ValueError('Batterietyp für Notizen wurde nicht gefunden.')
                 settings['battery_notes'] = {kind:text for kind,text in dict(settings.get('battery_notes', {}), **notes).items() if kind not in removed}
@@ -923,7 +938,7 @@ class Directory:
                 if p.get('confirmed') is not True or p.get('confirmation') != 'DATEN ZURÜCKSETZEN':
                     raise ValueError('Das endgültige Löschen der Geräte- und Aufgabendaten muss ausdrücklich bestätigt werden.')
                 settings = deepcopy(new.get('settings', {}))
-                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'battery_shop_urls', 'battery_no_restock', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
+                for key in ('battery_inventory', 'battery_inventory_hidden_types', 'battery_inventory_thresholds', 'battery_device_links', 'battery_notes', 'battery_shop_urls', 'battery_no_restock', 'battery_rechargeable_types', 'consumables', 'deleted_consumables', 'initial_device_capture', 'last_device_capture'):
                     settings.pop(key, None)
                 new = engine.blank()
                 new.update(settings=settings, questions=[], samples={})

@@ -639,7 +639,7 @@ def _validate_inventory_settings(settings):
             raise ValueError('Ungültige Batterienotizen im Import: ' + identity)
     for identity, url in mapping(settings.get('battery_shop_urls', {}), 'battery_shop_urls').items():
         normalize_shop_url(url)
-    for field in ('battery_inventory_hidden_types', 'battery_no_restock'):
+    for field in ('battery_inventory_hidden_types', 'battery_no_restock', 'battery_rechargeable_types'):
         if field in settings:
             strings(settings[field], field)
     for identity, ids in mapping(settings.get('battery_device_links', {}), 'battery_device_links').items():

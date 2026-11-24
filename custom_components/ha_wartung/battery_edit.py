@@ -7,7 +7,7 @@ except ImportError:  # Pure-module imports in the offline test harness.
 
 _UNSET = object()
 
-def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_ids, threshold=None, notes=None, shop_url=_UNSET, no_restock=_UNSET):
+def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_ids, threshold=None, notes=None, shop_url=_UNSET, no_restock=_UNSET, rechargeable=_UNSET):
  settings=data.setdefault('settings',{});stocks=settings.setdefault('battery_inventory',{})
  known=set(stocks)|set(settings.get('battery_inventory_hidden_types',[]))|set(settings.get('battery_device_links',{}))
  known.update(normalize(d.get('battery_type')) for d in data['devices'].values() if d.get('battery_type'))
@@ -19,6 +19,7 @@ def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_
  if type(threshold) is not int or not 0<=threshold<=100000:raise ValueError('Nachkauf-Schwelle muss eine ganze Zahl zwischen 0 und 100000 sein.')
  if notes is not None and (not isinstance(notes,str) or len(notes)>20000):raise ValueError('Notizen müssen Text mit höchstens 20000 Zeichen sein.')
  if no_restock is not _UNSET and type(no_restock) is not bool:raise ValueError('Nicht nachkaufen muss ein Wahrheitswert sein.')
+ if rechargeable is not _UNSET and type(rechargeable) is not bool:raise ValueError('Akku-Batterie muss ein Wahrheitswert sein.')
  url=normalize_shop_url(settings.get('battery_shop_urls',{}).get(old,'') if shop_url is _UNSET else shop_url)
  ids=validate_ids(data,device_ids)
  stocks.pop(old,None);stocks[new]=quantity
@@ -28,6 +29,13 @@ def edit_battery_type(data, old, new, quantity, device_ids, normalize, validate_
   disabled.discard(old);disabled.discard(new)
   if suppress:disabled.add(new)
   settings['battery_no_restock']=sorted(disabled)
+ if 'battery_rechargeable_types' in settings or rechargeable is not _UNSET:
+  rechargeable_types=set(settings.get('battery_rechargeable_types',[]));is_rechargeable=old in rechargeable_types if rechargeable is _UNSET else rechargeable
+  rechargeable_types.discard(old);rechargeable_types.discard(new)
+  if is_rechargeable:rechargeable_types.add(new)
+  settings['battery_rechargeable_types']=sorted(rechargeable_types)
+  if is_rechargeable:
+   disabled=set(settings.get('battery_no_restock',[]));disabled.add(new);settings['battery_no_restock']=sorted(disabled)
  links=settings.setdefault('battery_device_links',{});links.pop(old,None);links[new]=ids
  saved_notes=settings.setdefault('battery_notes',{})
  if new!=old and old in saved_notes:saved_notes[new]=saved_notes.pop(old)
