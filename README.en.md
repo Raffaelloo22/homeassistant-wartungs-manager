@@ -129,7 +129,7 @@ For task periods, **Jetzt** means due or requiring attention. **Bald** covers to
 
 ## Battery warnings and sensor tasks
 
-Battery warnings use `input_number.batterien_schwellwert` by default. The dashboard checks for this default helper when opened and creates it with an initial value of 20% if it does not exist. It preserves an existing helper and its value. In the general settings, you can select an existing `input_number` helper instead. The slider in **Einstellungen → Batteriewarnung** writes to the selected helper. You can also configure the currency used for costs in the general settings.
+Battery warnings use `input_number.batterien_schwellwert` by default. The dashboard never creates this helper automatically. If it is missing, a button in the battery settings lets you explicitly create it with an initial value of 20%. Existing helpers and their values are preserved. In the general settings, you can select an existing `input_number` helper instead. The slider in **Einstellungen → Batteriewarnung** writes to the selected helper. You can also configure the currency used for costs in the general settings.
 
 A valid battery percentage triggers a warning only when it is **strictly below** the threshold. An unknown, unavailable or invalid battery level does not trigger a percentage warning. If the helper is absent or unavailable, the dashboard identifies the fallback threshold of 20%. Archived, stored and trashed devices are excluded, as are devices whose battery warning is disabled.
 

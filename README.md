@@ -128,7 +128,7 @@ Vor dem Speichern sind Datum, Materialmenge und resultierender Bestand sichtbar.
 ### Einstellungen und Datenqualität
 
 - Kategorien und Ereignisarten hinzufügen, umbenennen, entfernen und per Drag-and-drop sortieren; die jeweilige Anzahl zugehöriger Einträge sehen.
-- Batterieschwelle per Schieberegler direkt mit einem Home-Assistant-Helfer synchronisieren. Den Standardhelfer prüft und erstellt das geöffnete Dashboard bei Bedarf selbst; alternativ kann ein vorhandener Helfer gewählt werden.
+- Batterieschwelle per Schieberegler direkt mit einem Home-Assistant-Helfer synchronisieren. Fehlt der Standardhelfer, kannst du ihn mit der Schaltfläche in den Batterieeinstellungen ausdrücklich anlegen; alternativ kann ein vorhandener Helfer gewählt werden.
 - Währung, Helferauswahl, Batterieschwelle und Meldungen direkt in der ersten Kachel **Allgemeine Einstellungen** verwalten. Geänderte Felder speichern beim Verlassen automatisch; bei Fehlern bleiben die Eingaben erhalten. Meldungen täglich, wöchentlich oder monatlich mit passender Uhrzeit und Wochentag bzw. Monatstag planen; bei kurzen Monaten gilt für fehlende Monatstage der letzte Tag. Eine Testmeldung lässt sich weiterhin auslösen.
 - **Datenprüfung** aufrufen: fehlende HA-Geräte und Sensoren, unvollständige Batterieangaben, ungültige Materialzuordnungen, verwaiste Verknüpfungen und mögliche Dubletten mit Links zu den betroffenen Akten prüfen. Die Prüfung verändert keine Daten.
 - Verzeichnis inklusive Einstellungen als JSON exportieren und nach ausdrücklicher Bestätigung wiederherstellen. **Daten zurücksetzen** entfernt Gerätedaten, Aufgaben und Vorräte; Kategorien, Ereignisarten und allgemeine Einstellungen bleiben erhalten.
@@ -178,7 +178,7 @@ Pro Home-Assistant-Instanz gibt es ein Wartungsverzeichnis. Es startet leer; der
 
 ## Batteriewarnung und Messwertaufgaben
 
-Die Batteriewarnung verwendet standardmässig `input_number.batterien_schwellwert`. Beim Öffnen prüft die App diesen Standardhelfer und legt ihn bei Bedarf mit 20% an. Vorhandene Werte bleiben erhalten. In den allgemeinen Einstellungen kann stattdessen ein vorhandener `input_number`-Helfer gewählt werden. Der Schieberegler unter **Einstellungen → Batteriewarnung** schreibt direkt in den ausgewählten Helfer. Die Währung für Kosten lässt sich ebenfalls in den allgemeinen Einstellungen festlegen.
+Die Batteriewarnung verwendet standardmässig `input_number.batterien_schwellwert`. Die App legt diesen Helfer nicht automatisch an. Fehlt er, erscheint in den Batterieeinstellungen eine Schaltfläche zum ausdrücklichen Anlegen mit einem Startwert von 20%. Vorhandene Werte bleiben erhalten. In den allgemeinen Einstellungen kann stattdessen ein vorhandener `input_number`-Helfer gewählt werden. Der Schieberegler unter **Einstellungen → Batteriewarnung** schreibt direkt in den ausgewählten Helfer. Die Währung für Kosten lässt sich ebenfalls in den allgemeinen Einstellungen festlegen.
 
 Eine Warnung erscheint bei gültigem Batteriestand strikt unter der Schwelle. Unbekannte und ungültige Werte lösen keine Prozentwarnung aus. Bei nicht verfügbarem Helfer gilt ein gekennzeichneter Ersatzwert von 20%. Lager-, Archiv- und Papierkorb-Geräte sowie Geräte mit deaktivierter Batteriewarnung sind ausgeschlossen.
 

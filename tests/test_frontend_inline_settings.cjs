@@ -16,9 +16,9 @@ function setup(){
  p.data.settings={...p.data.settings,currency:'CHF',enabled:false,weekday:0,time:'09:00'};
  p._hass={states:{[HELPER]:{state:'20',attributes:{min:0,max:100,step:1}},[OTHER]:{state:'35',attributes:{min:0,max:100,step:1}}}};
  const currency=form('currency',[['currency','CHF']]),helper=form('helper',[['battery_threshold_entity',HELPER]]),schedule=form('schedule',[['notification_frequency','weekly'],['weekday','0'],['monthday','1'],['time','09:00']]);
- const forms={currency,helper,schedule},input={value:'20',disabled:false},hint={},output={},info={};let draws=0,flushes=0,helperChecks=0;
+ const forms={currency,helper,schedule},input={value:'20',disabled:false},hint={},output={},info={};let draws=0,flushes=0;
  p.shadowRoot={activeElement:null,querySelectorAll:selector=>selector==='[data-settings-form]'?Object.values(forms):[],querySelector:selector=>selector==='#battery-threshold-input'?input:selector==='#battery-threshold-hint'?hint:selector==='#battery-threshold-output'?output:selector==='#battery-threshold-helper'?info:null};
- p.draw=()=>draws++;p.scheduleBackgroundFlush=()=>flushes++;p.ensureBatteryThresholdHelper=async()=>helperChecks++;
+ p.draw=()=>draws++;p.scheduleBackgroundFlush=()=>flushes++;
  const backend=plain(p.data),writes=[];p.api=async(action,payload)=>{
   if(action==='get')return plain(backend);
   assert(['preferences','settings'].includes(action));assert.equal(payload.revision,backend.revision,'each queued write uses the current server revision');
@@ -27,13 +27,13 @@ function setup(){
  function edit(kind,name,value){const control=forms[kind].controls.find(control=>control.name===name);if(control.type==='checkbox')control.checked=value;else control.value=value;p.shadowRoot.activeElement=control;forms[kind].oninput();return control;}
  function blur(kind,control,next=null){p.shadowRoot.activeElement=next;const before=p.inlineSettingsTail,event=new Event('focusout',{bubbles:true});Object.defineProperties(event,{target:{value:control},relatedTarget:{value:next}});forms[kind].dispatchEvent(event);return p.inlineSettingsTail!==before?p.inlineSettingsTail:undefined;}
  p.bindInlineSettingsForms();
- return {p,forms,currency,helper,schedule,input,hint,output,info,backend,writes,edit,blur,draws:()=>draws,flushes:()=>flushes,helperChecks:()=>helperChecks};
+ return {p,forms,currency,helper,schedule,input,hint,output,info,backend,writes,edit,blur,draws:()=>draws,flushes:()=>flushes};
 }
 (async()=>{
  {
   const {p,writes}=setup(),before=plain(p.data),card=p.generalSettingsCard(p.data),all=p.settingsView(p.data);
-  assert(card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/class="settings-card"/g)||[]).length,3,'general settings render as three separate cards');assert.equal((card.match(/data-settings-form=/g)||[]).length,3);
-  assert.deepEqual([...card.matchAll(/<section class="settings-card"><h2>([^<]+)<\/h2>/g)].map(match=>match[1]),['Batteriewarnung','Meldung innerhalb Home Assistant','Währung']);
+  assert(!card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/class="settings-card"/g)||[]).length,4,'general settings render as four separate cards');assert.equal((card.match(/data-settings-form=/g)||[]).length,4);
+  assert.deepEqual([...card.matchAll(/<section class="settings-card"><h2>([^<]+)<\/h2>/g)].map(match=>match[1]),['Batteriewarnung','Meldung innerhalb Home Assistant','Währung','Sprache']);
   assert(card.indexOf('name="battery_threshold_entity"')<card.indexOf('data-settings-form="schedule"'),'helper selection stays in the battery warning card');
   assert(!card.includes('type="submit"')&&!card.includes('>Speichern<'));
   assert(card.includes('type="reset" tabindex="-1"'),'discard remains clickable but cannot intercept the normal keyboard tab order');

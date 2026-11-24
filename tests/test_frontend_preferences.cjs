@@ -54,24 +54,24 @@ async function run(){
  {
   const p=setup();p.data.settings.battery_threshold_entity=CUSTOM;
   p._hass.states[DEFAULT]={state:'10'};let writes=0;p._hass.callWS=p._hass.callService=async()=>{writes++;};
-  await p.ensureBatteryThresholdHelper();assert.equal(writes,0,'missing custom helper must never cause creation, deletion or service writes');
-  assert(p.helperCheckError.includes('ausgewählte'));assert.deepEqual(plain(p.batteryThreshold()),{entity:CUSTOM,value:20,valid:false});
+  await p.createBatteryThresholdHelper();assert.equal(writes,0,'missing custom helper must never cause creation, deletion or service writes');
+  assert(p.helperCheckError.includes('Standardhelfer'));assert.deepEqual(plain(p.batteryThreshold()),{entity:CUSTOM,value:20,valid:false});
   assert(p.batteryThresholdEditor().includes('disabled'));
   const status={};p.shadowRoot.querySelector=selector=>selector==='#battery-threshold-status'?status:null;
   await p.saveBatteryThreshold({value:'25',checkValidity:()=>true});assert.equal(writes,0);assert(status.textContent.includes('nicht verfügbar'));
  }
  {
   const p=setup(),calls=[];p._hass.callWS=async command=>{calls.push(plain(command));if(command.type==='input_number/list')return [];if(command.type==='config/entity_registry/get')throw {code:'not_found'};if(command.type==='input_number/create')return {id:'batterien_schwellwert'};throw Error('Unexpected helper operation');};
-  await p.ensureBatteryThresholdHelper();assert.equal(calls.filter(x=>x.type==='input_number/create').length,1);assert.equal(calls.find(x=>x.type==='input_number/create').initial,20);assert(!calls.some(x=>x.type==='input_number/delete'));
-  const existing=setup();existing._hass.states[DEFAULT]={state:'15'};await existing.ensureBatteryThresholdHelper();assert.equal(existing._hass.states[DEFAULT].state,'15','default existing value is not reset');
+  await p.createBatteryThresholdHelper();assert.equal(calls.filter(x=>x.type==='input_number/create').length,1);assert.equal(calls.find(x=>x.type==='input_number/create').initial,20);assert(!calls.some(x=>x.type==='input_number/delete'));
+  const existing=setup();existing._hass.states[DEFAULT]={state:'15'};await existing.createBatteryThresholdHelper();assert.equal(existing._hass.states[DEFAULT].state,'15','default existing value is not reset');
  }
  {
   const p=setup();p.data.settings.battery_threshold_entity=CUSTOM;let checks=0;
-  p.ensureBatteryThresholdHelper=async()=>{checks++;};
+  p.createBatteryThresholdHelper=async()=>{checks++;};
   for(const name of ['syncBatteryThresholdControl','updateBatteryBadges','updateBatteryWarnings','updateDeviceStatuses','updateBatteryTaskStructure','updateRuleSensorValue'])p[name]=()=>{};
-  p.hass={states:{[CUSTOM]:{state:'35'}}};assert.equal(checks,0,'HA update uses selected helper, not absence of old default');
-  p.hass={states:{[DEFAULT]:{state:'10'}}};assert.equal(checks,1,'HA update checks missing selected helper');
+  p.hass={states:{[CUSTOM]:{state:'35'}}};assert.equal(checks,0,'opening panel or HA state updates never create a helper');
+  p.hass={states:{[DEFAULT]:{state:'10'}}};assert.equal(checks,0,'missing helper is not created during HA state updates');
  }
- console.log('PASS: Preferences are escaped and read-only until Save; currency changes display only; selected HA helper controls value, limits and writes; missing custom helpers are never created or deleted.');
+ console.log('PASS: Preferences are escaped and read-only until Save; currency changes display only; selected HA helper controls value, limits and writes; helper creation is explicit only.');
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});
