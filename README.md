@@ -8,8 +8,6 @@ Einmal Regeln und Zuordnungen festlegen: Der Wartungs-Manager berechnet Fälligk
 
 [English documentation](README.en.md) · [Problem melden](https://github.com/Raffaelloo22/homeassistant-wartungs-manager/issues)
 
-<a href="https://buymeacoffee.com/raffaelloo"><img src="docs/assets/buy-me-a-coffee.webp" alt="Wartungs-Manager auf Buy Me a Coffee unterstützen" width="218"></a>
-
 ## Was automatisch passiert
 
 | Ablauf | Auslöser | Ergebnis |
