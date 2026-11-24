@@ -31,7 +31,8 @@ DEFAULT_DEVICE_CATEGORIES = engine.DEFAULT_DEVICE_CATEGORIES
 
 DOMAIN = 'ha_wartung'
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-VERSION = '1.2.15'
+VERSION = '1.2.16'
+VERSION_DATE = '24.11.26'
 _LOGGER = logging.getLogger(__name__)
 STATUS = {'no_due':'Ohne Fälligkeit','planning':'Einplanen','overdue':'Überfällig','due':'Fällig',
           'soon':'Nächste sieben Tage','scheduled':'Geplant',
@@ -229,7 +230,7 @@ class Directory:
                               device_name=device['name'], area=device.get('area'),
                               label=STATUS[view['status']]))
         result.update(views=views, today=now.date().isoformat(),
-                      timezone=self.hass.config.time_zone, currency=getattr(self.hass.config, 'currency', None) or 'CHF', version=VERSION)
+                      timezone=self.hass.config.time_zone, currency=getattr(self.hass.config, 'currency', None) or 'CHF', version=VERSION, version_date=VERSION_DATE)
         return result
 
     async def commit(self, new):

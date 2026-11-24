@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## 1.2.16
+
+- Versionsdatum direkt hinter der Versionsnummer in den Einstellungen ergänzt. Die interne Datenrevision wird dort nicht mehr angezeigt.
+
 ## 1.2.15
 
 - Batteriewarnungen in den Gerätekacheln sind kontrastreicher und fett hervorgehoben. Der blassrosa Hintergrund wurde entfernt.
