@@ -663,6 +663,8 @@ def validate_data(data):
     for identity, device in data['devices'].items():
         if not isinstance(device, dict) or device.get('id') != identity or not str(device.get('name', '')).strip():
             raise ValueError('Gerätename und ID sind erforderlich.')
+        if 'info_url' in device:
+            normalize_shop_url(device['info_url'])
         for field in ('purchase_date', 'archived_at'):
             parse_date(device.get(field))
         for field in ('created_at', 'device_updated_at'):
