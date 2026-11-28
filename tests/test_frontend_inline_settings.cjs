@@ -32,8 +32,8 @@ function setup(){
 (async()=>{
  {
   const {p,writes}=setup(),before=plain(p.data),card=p.generalSettingsCard(p.data),all=p.settingsView(p.data);
-  assert(!card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/class="settings-card"/g)||[]).length,4,'general settings render as four separate cards');assert.equal((card.match(/data-settings-form=/g)||[]).length,4);
-  assert.deepEqual([...card.matchAll(/<section class="settings-card"><h2>([^<]+)<\/h2>/g)].map(match=>match[1]),['Batteriewarnung','Meldung innerhalb Home Assistant','Währung','Sprache']);
+  assert(!card.includes('<h2>Allgemeine Einstellungen</h2>'));assert.equal((card.match(/<section class="settings-card(?: [^"]*)?">/g)||[]).length,3,'general settings render as three cards');assert.equal((card.match(/data-settings-form=/g)||[]).length,4);
+  assert.deepEqual([...card.matchAll(/<section class="settings-card(?: [^"]*)?"><h2>([^<]+)<\/h2>/g)].map(match=>match[1]),['Batteriewarnung','Meldung innerhalb Home Assistant','Regionale Einstellungen']);
   assert(card.indexOf('name="battery_threshold_entity"')<card.indexOf('data-settings-form="schedule"'),'helper selection stays in the battery warning card');
   assert(!card.includes('type="submit"')&&!card.includes('>Speichern<'));
   assert(card.includes('type="reset" tabindex="-1"'),'discard remains clickable but cannot intercept the normal keyboard tab order');
