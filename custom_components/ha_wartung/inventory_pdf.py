@@ -163,7 +163,7 @@ def _usage_devices_text(devices, usage, width):
 
 
 def _logo(canvas):
-    """The existing brand/icon.svg geometry, embedded once as a reusable vector."""
+    """Draw the Wartungs-Manager mark as a reusable vector."""
     canvas.beginForm('WartungsManagerLogo', 0, 0, 256, 256)
     canvas.setFillColor(colors.HexColor('#147D8B'))
     canvas.roundRect(12, 12, 232, 232, 56, stroke=0, fill=1)

@@ -39,8 +39,9 @@ class InventoryPdf(unittest.TestCase):
         self.assertEqual(len(reader.pages), 1)
         text = reader.pages[0].extract_text()
         for expected in ('Verbrauchsmaterial', '23.11.26 · 14:20', 'Batterien', 'Weitere Verbrauchsmaterialien',
-                         'Türsensor - Zimmer Eléa', 'Büro', 'Stück', '-1.5', 'Salz <b> & Reiniger', 'Seite 1'):
+                         'Türsensor - Zimmer Eléa', 'Büro', '-1.5', 'Salz <b> & Reiniger', '25 kg Säcke', 'Seite 1'):
             self.assertIn(expected, text)
+        self.assertNotIn('Stück', text, 'Battery quantities do not print a unit in the stock list')
         self.assertNotIn('/Annots', reader.pages[0], 'Payload markup never creates PDF links or annotations')
         self.assertNotIn('/JavaScript', reader.trailer['/Root'])
         fonts = reader.pages[0]['/Resources']['/Font'].get_object().values()
@@ -350,7 +351,7 @@ class InventoryPdf(unittest.TestCase):
         text = read_pdf(result).pages[0].extract_text()
         self.assertIn('—', text)
         self.assertNotIn('Keine Gerätezuordnung', text)
-        self.assertIn('— Stück', text)
+        self.assertNotIn('Stück', text)
 
     def test_invalid_numbers_types_and_bounds_are_rejected(self):
         invalid = [None, [], {}, dict(items='wrong'), dict(items=[{}]), dict(items=[item()] * 1001),
