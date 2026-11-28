@@ -205,7 +205,7 @@ def build_inventory_pdf(payload, when):
     rows = []
     for item in data['items']:
         amount = _quantity(item['quantity'])
-        unit, _ = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' ')))
+        unit, _ = _fit(item['unit'], max(0, widths[0] - 4 - _width(amount + ' '))) if item['kind'] != 'battery' else ('', False)
         stock = amount + (' ' + unit if unit else '')
         name, _ = _fit(item['name'], widths[1] - 8)
         usage = item['usage'] if item['kind'] == 'battery' else ''

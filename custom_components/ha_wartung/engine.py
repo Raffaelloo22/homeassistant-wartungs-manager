@@ -278,7 +278,8 @@ def calendar_day(year, month, day):
 
 def blank():
     return {'schema': 1, 'revision': 0, 'devices': {}, 'rules': {},
-            'logs': {}, 'shopping': {}, 'imports': {}, 'operations': {}}
+            'logs': {}, 'shopping': {}, 'imports': {}, 'operations': {},
+            'today_tasks': {'date': '', 'rule_ids': []}}
 
 
 def parse_date(value):
@@ -653,6 +654,14 @@ def validate_data(data):
     for key in ('devices', 'rules', 'logs', 'shopping', 'imports', 'operations'):
         if not isinstance(data.get(key), dict):
             raise ValueError('Ungültige Datensammlung: ' + key)
+    data.setdefault('today_tasks', {'date': '', 'rule_ids': []})
+    today_tasks = data['today_tasks']
+    if (not isinstance(today_tasks, dict) or not isinstance(today_tasks.get('date', ''), str)
+        or not isinstance(today_tasks.get('rule_ids', []), list)
+        or any(not isinstance(identity, str) or not identity for identity in today_tasks.get('rule_ids', []))):
+        raise ValueError('Ungültige Aufgaben-Auswahl für heute.')
+    if today_tasks.get('date'):
+        parse_date(today_tasks['date'])
     _validate_inventory_settings(data.get('settings', {}))
     settings = data.get('settings', {})
     validate_notification_settings(settings)

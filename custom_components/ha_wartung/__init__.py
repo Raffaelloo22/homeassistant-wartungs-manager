@@ -228,7 +228,10 @@ class Directory:
             views.append(dict(view, name=view.get('task_name',rule['name']), device_id=device['id'],
                               device_name=device['name'], area=device.get('area'),
                               label=STATUS[view['status']]))
-        result.update(views=views, today=now.date().isoformat(),
+        today = now.date().isoformat()
+        today_tasks = self.data.get('today_tasks', {})
+        result.update(views=views, today=today,
+                      today_tasks={'date':today, 'rule_ids':today_tasks.get('rule_ids', []) if today_tasks.get('date') == today else []},
                       timezone=self.hass.config.time_zone, currency=getattr(self.hass.config, 'currency', None) or 'CHF', version=VERSION, version_date='24.11.26')
         return result
 
@@ -398,6 +401,17 @@ class Directory:
                 for device in selected.values():
                     device['device_updated_at'] = timestamp
                 result.update(updated=len(selected), device_updated_at=timestamp)
+            elif action == 'set_today_tasks':
+                rule_ids = p.get('rule_ids')
+                if not isinstance(rule_ids, list) or len(rule_ids) > 500 or any(not isinstance(identity, str) or not identity for identity in rule_ids):
+                    raise ValueError('Ungültige Auswahl für Heute erledigen.')
+                if p.get('date') != now.date().isoformat():
+                    raise ValueError('Der Tag hat gewechselt. Bitte die Tagesauswahl aktualisieren.')
+                allowed = {identity for identity, rule in new['rules'].items() if not rule.get('deleted_at')}
+                allowed.update('battery:' + identity for identity, device in new['devices'].items() if not device.get('deleted_at') and not device.get('in_storage') and not device.get('archived') and not device.get('archived_at') and (device.get('battery_type') or device.get('battery_entity_id')) and device.get('battery_alert_enabled') is not False)
+                if any(identity not in allowed for identity in rule_ids):
+                    raise ValueError('Die Auswahl enthält eine nicht mehr verfügbare Aufgabe.')
+                new['today_tasks'] = {'date':now.date().isoformat(), 'rule_ids':list(dict.fromkeys(rule_ids))}
             elif action == 'preferences':
                 value = p.get('value', {})
                 if not isinstance(value, dict):
