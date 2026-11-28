@@ -44,7 +44,7 @@ function fixture(){
   assert(html.includes('<svg width="18" height="18"')&&html.includes('aria-hidden="true" focusable="false"'),'the small info icon is decorative to screen readers');
   assert(/<section id="rule-kind-help"[^>]*role="region"[^>]*hidden>/.test(html),'help starts collapsed inside the form');
   assert.deepEqual([...html.matchAll(/<dt>([^<]+)<\/dt>/g)].map(match=>match[1]),['Ohne','Termin','Intervall / Einplanen','Jährliche Saison','Messwert','Wartungsrotation','Nach Geräteanzeige']);
-  for(const text of ['01.06.27','10.01.27 → fällig 10.04.27','01.11.26 mit Samstag → 31.10.26','19 % fällig, 20 % nicht','beide 0','erneut geplant','neuerer Messwertbericht','Orientierung'])assert(html.includes(text),text+' is explained');
+  for(const text of ['01.02.27','10.01.27 → nächster Termin 10.04.27','01.11.26 mit Samstag = Sa, 31.10.26','29 % Aufladen fällig, 30 % nicht','beide 0','erneut geplant','neuerer Messwertbericht','Orientierung'])assert(html.includes(text),text+' is explained');
   assert(!/\b\d{2}\.\d{2}\.\d{4}\b/.test(html),'help examples use dd.mm.yy');
   assert(html.includes('nächstgelegenen Wochentag'),'the season label describes nearest, rather than only a later weekday');
   assert(!html.includes('lösen keine Aufgabe aus'),'sensor guidance agrees with the pending-value explanation');

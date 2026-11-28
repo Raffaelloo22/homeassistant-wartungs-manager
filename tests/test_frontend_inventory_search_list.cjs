@@ -97,7 +97,7 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
    for(const absent of ['Nachkaufen','Bearbeiten','Entfernen','inventory-list-threshold','inventory-usage','inventory-notes','shop-link'])assert(!html.includes(absent),absent+' is reserved for cards and editing');
   }
   const rows=p.inventoryItems(),battery=p.inventoryListRow(rows.find(item=>item.id==='AA')),material=p.inventoryListRow(rows.find(item=>item.id==='salt')),unknown=p.inventoryListRow(rows.find(item=>item.id==='filter'));
-  assert(battery.includes('3')&&battery.includes('Stück')&&battery.includes('AA Batterie'));
+  assert(battery.includes('3')&&!battery.includes('Stück')&&battery.includes('AA Batterie'),'battery rows omit the redundant Stück unit in the compact list');
   assert(battery.includes('Zoé Küchensensor')&&battery.includes('Mara &lt;Türsensor&gt; &amp; Licht'),'all associated device names remain visible and escaped');
   assert(battery.includes(', '),'associated devices are separated on the same line');
   assert.equal((battery.match(/Zoé Küchensensor/g)||[]).length,1,'duplicate automatic/manual device assignments appear only once');
@@ -159,12 +159,12 @@ function ids(p){return plain(p.inventoryItems().filter(item=>p.inventoryMatches(
   for(const selector of ['#search','#clearsearch','#categoryfilter','#area','#taskperiod'])nodes.set(selector,{value:'',hidden:false,focus(){}});
   nodes.set('#body',body);
   for(const mode of ['all','with','without'])nodes.set('#inventory-assignment [data-id="'+mode+'"]',{dataset:{action:'inventoryassignment',id:mode},setAttribute:(key,value)=>states[mode][key]=value});
-  const root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(type,handler){listeners[type]=handler;}};p.shadowRoot=root;p.renderCompletionUndo=()=>{};const before=plain(p.data);
+  const root={innerHTML:'',querySelector:selector=>nodes.get(selector)||null,querySelectorAll:()=>[],addEventListener(type,handler){(listeners[type]??=[]).push(handler);}};p.shadowRoot=root;p.renderCompletionUndo=()=>{};const before=plain(p.data);
   const nativeSync=Object.getPrototypeOf(p).syncInventoryToolbar;p.syncInventoryToolbar=(count,list)=>{toolbar.push({count,list});nativeSync.call(p,count,list);};
   p.draw();assert(root.innerHTML.includes('id="inventory-assignment"'));assert(root.innerHTML.includes('Gerätezuordnung:'));assert(root.innerHTML.includes('role="group" aria-labelledby="inventory-assignment-label"'));assert(!root.innerHTML.includes('inventory-assigned-only'));
   assert(root.innerHTML.indexOf('id="inventory-count"')<root.innerHTML.indexOf('id="inventory-assignment"')&&root.innerHTML.indexOf('id="inventory-assignment"')<root.innerHTML.indexOf('id="inventory-layout"')&&root.innerHTML.indexOf('id="inventory-layout"')<root.innerHTML.indexOf('id="body"'),'assignment controls share the toolbar between article count and layout switch, outside the changing body');
   for(const [mode,label] of [['all','Alle'],['with','mit'],['without','ohne']])assert(root.innerHTML.includes('data-action="inventoryassignment" data-id="'+mode+'" type="button" aria-pressed="'+(mode==='all')+'">'+label+'</button>'));
-  const markup=root.innerHTML,click=mode=>{const button=nodes.get('#inventory-assignment [data-id="'+mode+'"]');root.activeElement=button;listeners.click({target:{closest:()=>button}});assert.equal(root.activeElement,button,'the selected assignment button keeps focus');assert.equal(root.innerHTML,markup,'filter clicks never rebuild the toolbar or assignment group');};
+  const markup=root.innerHTML,click=mode=>{const button=nodes.get('#inventory-assignment [data-id="'+mode+'"]');root.activeElement=button;for(const handler of listeners.click)handler({target:{closest:()=>button}});assert.equal(root.activeElement,button,'the selected assignment button keeps focus');assert.equal(root.innerHTML,markup,'filter clicks never rebuild the toolbar or assignment group');};
   click('with');assert.equal(p.inventoryAssignment,'with');assert.equal(toolbar.at(-1).count,'3 von 4 Artikeln');assert(!body.innerHTML.includes('Entkalkersalz'));assert.equal(states.with['aria-pressed'],'true');assert.equal(states.all['aria-pressed'],'false');
   const renders=toolbar.length;click('with');assert.equal(toolbar.length,renders,'the selected segment does not redraw twice');
   click('without');assert.equal(p.inventoryAssignment,'without');assert.equal(toolbar.at(-1).count,'1 von 4 Artikeln');assert(body.innerHTML.includes('Entkalkersalz'));assert(!body.innerHTML.includes('Wasserfilter'));assert.equal(states.without['aria-pressed'],'true');assert.equal(states.with['aria-pressed'],'false');
